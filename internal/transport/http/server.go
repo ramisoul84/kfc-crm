@@ -1,0 +1,116 @@
+package http
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+
+	"github.com/ramisoul84/kfc-crm/internal/config"
+)
+
+// Server wraps the Fiber app with lifecycle methods.
+type Server struct {
+	app *fiber.App
+	cfg *config.Config
+}
+
+// NewServer creates a Fiber app configured from cfg.
+func NewServer(cfg *config.Config) *Server {
+	app := fiber.New(fiber.Config{
+		AppName:               cfg.App.Name,
+		ReadTimeout:           cfg.HTTP.ReadTimeout,
+		WriteTimeout:          cfg.HTTP.WriteTimeout,
+		IdleTimeout:           cfg.HTTP.IdleTimeout,
+		DisableStartupMessage: true,
+		ErrorHandler:          errorHandler,
+	})
+
+	s := &Server{
+		app: app,
+		cfg: cfg,
+	}
+
+	// Register middleware first, then routes
+	s.registerMiddleware()
+	s.registerRoutes()
+
+	return s
+}
+
+// App returns the underlying Fiber app.
+func (s *Server) App() *fiber.App {
+	return s.app
+}
+
+// Start begins listening for HTTP requests. Blocks until shutdown.
+func (s *Server) Start() error {
+	addr := ":" + s.cfg.HTTP.Port
+	if err := s.app.Listen(addr); err != nil {
+		return fmt.Errorf("http server failed: %w", err)
+	}
+	return nil
+}
+
+// Shutdown gracefully shuts down the server.
+func (s *Server) Shutdown(ctx context.Context) error {
+	return s.app.ShutdownWithContext(ctx)
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MIDDLEWARE
+// ═══════════════════════════════════════════════════════════════════
+
+func (s *Server) registerMiddleware() {
+	s.app.Use(recover.New())
+	s.app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET,POST,PUT,DELETE,PATCH,OPTIONS",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization,X-Request-ID",
+	}))
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ROUTES
+// ═══════════════════════════════════════════════════════════════════
+
+func (s *Server) registerRoutes() {
+	// Health check (public)
+	s.app.Get("/health", s.healthCheck)
+
+	// API v1
+	_ = s.app.Group("/api/v1")
+
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HANDLERS
+// ═══════════════════════════════════════════════════════════════════
+
+func (s *Server) healthCheck(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
+		"status": "ok",
+		"time":   time.Now().Format(time.RFC3339),
+	})
+}
+
+// errorHandler converts unhandled errors to the standard response envelope.
+func errorHandler(c *fiber.Ctx, err error) error {
+	code := fiber.StatusInternalServerError
+
+	if e, ok := err.(*fiber.Error); ok {
+		code = e.Code
+	}
+
+	return c.Status(code).JSON(fiber.Map{
+		"success": false,
+		"error": fiber.Map{
+			"type":    "internal",
+			"message": err.Error(),
+		},
+		"timestamp": time.Now().Unix(),
+	})
+}
