@@ -10,28 +10,31 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/ramisoul84/kfc-crm/internal/config"
+	"github.com/ramisoul84/kfc-crm/pkg/logger"
 )
 
 // Server wraps the Fiber app with lifecycle methods.
 type Server struct {
-	app *fiber.App
-	cfg *config.Config
+	app    *fiber.App
+	cfg    *config.Config
+	logger *logger.Logger
 }
 
 // NewServer creates a Fiber app configured from cfg.
-func NewServer(cfg *config.Config) *Server {
+func NewServer(cfg *config.Config, log *logger.Logger) *Server {
 	app := fiber.New(fiber.Config{
 		AppName:               cfg.App.Name,
 		ReadTimeout:           cfg.HTTP.ReadTimeout,
 		WriteTimeout:          cfg.HTTP.WriteTimeout,
 		IdleTimeout:           cfg.HTTP.IdleTimeout,
 		DisableStartupMessage: true,
-		ErrorHandler:          errorHandler,
+		ErrorHandler:          errorHandler(log),
 	})
 
 	s := &Server{
-		app: app,
-		cfg: cfg,
+		app:    app,
+		cfg:    cfg,
+		logger: log,
 	}
 
 	// Register middleware first, then routes
@@ -49,6 +52,7 @@ func (s *Server) App() *fiber.App {
 // Start begins listening for HTTP requests. Blocks until shutdown.
 func (s *Server) Start() error {
 	addr := ":" + s.cfg.HTTP.Port
+	s.logger.Info("http server listening", "addr", addr)
 	if err := s.app.Listen(addr); err != nil {
 		return fmt.Errorf("http server failed: %w", err)
 	}
@@ -97,20 +101,32 @@ func (s *Server) healthCheck(c *fiber.Ctx) error {
 	})
 }
 
-// errorHandler converts unhandled errors to the standard response envelope.
-func errorHandler(c *fiber.Ctx, err error) error {
-	code := fiber.StatusInternalServerError
+// ═══════════════════════════════════════════════════════════════════
+// ERROR HANDLER
+// ═══════════════════════════════════════════════════════════════════
 
-	if e, ok := err.(*fiber.Error); ok {
-		code = e.Code
+func errorHandler(log *logger.Logger) fiber.ErrorHandler {
+	return func(c *fiber.Ctx, err error) error {
+		code := fiber.StatusInternalServerError
+
+		if e, ok := err.(*fiber.Error); ok {
+			code = e.Code
+		}
+
+		log.Error("unhandled error",
+			"method", c.Method(),
+			"path", c.Path(),
+			"status", code,
+			"error", err.Error(),
+		)
+
+		return c.Status(code).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"type":    "internal",
+				"message": err.Error(),
+			},
+			"timestamp": time.Now().Unix(),
+		})
 	}
-
-	return c.Status(code).JSON(fiber.Map{
-		"success": false,
-		"error": fiber.Map{
-			"type":    "internal",
-			"message": err.Error(),
-		},
-		"timestamp": time.Now().Unix(),
-	})
 }
