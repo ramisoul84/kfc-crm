@@ -37,3 +37,12 @@ func isNotNullError(err error) bool {
 		strings.Contains(msg, "not-null") ||
 		strings.Contains(msg, "null value in column")
 }
+
+// nullableString returns nil for empty strings, so the DB stores NULL
+// instead of an empty string. Useful for optional text columns.
+func nullableString(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
+}
