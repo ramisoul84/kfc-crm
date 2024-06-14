@@ -11,6 +11,7 @@ type Config struct {
 	App    AppConfig
 	HTTP   HTTPConfig
 	Logger LoggerConfig
+	JWT    JWTConfig
 }
 
 // AppConfig holds application-level configuration
@@ -37,6 +38,13 @@ type LoggerConfig struct {
 	Output   string
 	FilePath string
 	Service  string
+}
+
+// JWTConfig holds JWT configuration
+type JWTConfig struct {
+	Secret          string
+	AccessDuration  time.Duration
+	RefreshDuration time.Duration
 }
 
 // Load reads configuration from environment variables and validates it.
@@ -66,6 +74,12 @@ func Load() (*Config, error) {
 			Output:   getEnv("LOG_OUTPUT", defaultLogOutput(env)),
 			FilePath: getEnv("LOG_FILE_PATH", "logs/app.log"),
 			Service:  getEnv("LOG_SERVICE", "kfc-crm"),
+		},
+
+		JWT: JWTConfig{
+			Secret:          getEnv("JWT_SECRET", "dev-secret-change-in-production"),
+			AccessDuration:  getEnvDuration("JWT_ACCESS_DURATION", 15*time.Minute),
+			RefreshDuration: getEnvDuration("JWT_REFRESH_DURATION", 7*24*time.Hour),
 		},
 	}
 
@@ -104,6 +118,24 @@ func (c *Config) Validate() error {
 	for name, port := range ports {
 		if !isValidPort(port) {
 			errors = append(errors, fmt.Sprintf("invalid %s: %q", name, port))
+		}
+	}
+
+	// Validate JWT
+	if c.JWT.AccessDuration <= 0 {
+		errors = append(errors, "JWT_ACCESS_DURATION must be positive")
+	}
+	if c.JWT.RefreshDuration <= 0 {
+		errors = append(errors, "JWT_REFRESH_DURATION must be positive")
+	}
+	if c.JWT.AccessDuration >= c.JWT.RefreshDuration {
+		errors = append(errors, "JWT_ACCESS_DURATION must be less than JWT_REFRESH_DURATION")
+	}
+
+	// Production security checks
+	if c.App.Environment == "production" {
+		if len(c.JWT.Secret) < 32 {
+			errors = append(errors, "JWT_SECRET must be at least 32 characters in production")
 		}
 	}
 
