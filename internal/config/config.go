@@ -11,6 +11,7 @@ type Config struct {
 	App    AppConfig
 	HTTP   HTTPConfig
 	Logger LoggerConfig
+	Redis  RedisConfig
 	JWT    JWTConfig
 }
 
@@ -47,6 +48,19 @@ type JWTConfig struct {
 	RefreshDuration time.Duration
 }
 
+// RedisConfig holds Redis connection settings.
+type RedisConfig struct {
+	Host         string
+	Port         string
+	Password     string
+	DB           int
+	PoolSize     int
+	MinIdleConns int
+	DialTimeout  time.Duration
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+}
+
 // Load reads configuration from environment variables and validates it.
 func Load() (*Config, error) {
 	env := getEnv("APP_ENV", "development")
@@ -74,6 +88,18 @@ func Load() (*Config, error) {
 			Output:   getEnv("LOG_OUTPUT", defaultLogOutput(env)),
 			FilePath: getEnv("LOG_FILE_PATH", "logs/app.log"),
 			Service:  getEnv("LOG_SERVICE", "kfc-crm"),
+		},
+
+		Redis: RedisConfig{
+			Host:         getEnv("REDIS_HOST", "localhost"),
+			Port:         getEnv("REDIS_PORT", "6379"),
+			Password:     getEnv("REDIS_PASSWORD", ""),
+			DB:           getEnvInt("REDIS_DB", 0),
+			PoolSize:     getEnvInt("REDIS_POOL_SIZE", 10),
+			MinIdleConns: getEnvInt("REDIS_MIN_IDLE_CONNS", 5),
+			DialTimeout:  getEnvDuration("REDIS_DIAL_TIMEOUT", 5*time.Second),
+			ReadTimeout:  getEnvDuration("REDIS_READ_TIMEOUT", 3*time.Second),
+			WriteTimeout: getEnvDuration("REDIS_WRITE_TIMEOUT", 3*time.Second),
 		},
 
 		JWT: JWTConfig{
