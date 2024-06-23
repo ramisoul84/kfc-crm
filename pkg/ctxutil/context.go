@@ -4,10 +4,11 @@ import (
 	"context"
 )
 
-
 const (
 	RequestIDKey = "request_id"
 	UserIDKey    = "user_id"
+	EmailKey     = "email"
+	RoleKey      = "role"
 )
 
 // WithRequestID stores a request ID in the context.
