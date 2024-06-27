@@ -7,6 +7,7 @@ import (
 
 	"github.com/ramisoul84/kfc-crm/internal/domain"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
+	"github.com/ramisoul84/kfc-crm/pkg/validator"
 )
 
 // Response is the standard API response envelope.
@@ -59,11 +60,24 @@ func NoContent(c *fiber.Ctx) error {
 // ═══════════════════════════════════════════════════════════════════
 
 // Error sends an error response with the correct HTTP status.
-// If the error is a domain.AppError, its type and status are used.
-// Otherwise, it falls back to a 500 Internal Server Error.
 func Error(c *fiber.Ctx, err error) error {
 	requestID := ctxutil.GetRequestIDFromFiber(c)
 
+	// Validation errors → 400 with details
+	if ve, ok := validator.AsValidationErrors(err); ok {
+		return c.Status(fiber.StatusBadRequest).JSON(Response{
+			Success: false,
+			Error: &ErrorInfo{
+				Type:    "validation",
+				Message: "validation failed",
+				Details: ve.Errors,
+			},
+			RequestID: requestID,
+			Timestamp: time.Now().Unix(),
+		})
+	}
+
+	// Domain errors → their status
 	if appErr, ok := domain.AsAppError(err); ok {
 		return c.Status(appErr.StatusCode).JSON(Response{
 			Success: false,
@@ -77,6 +91,7 @@ func Error(c *fiber.Ctx, err error) error {
 		})
 	}
 
+	// Fallback → 500
 	return c.Status(fiber.StatusInternalServerError).JSON(Response{
 		Success: false,
 		Error: &ErrorInfo{
