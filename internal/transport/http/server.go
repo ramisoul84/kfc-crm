@@ -10,20 +10,32 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/ramisoul84/kfc-crm/internal/config"
+	"github.com/ramisoul84/kfc-crm/internal/repository"
+	"github.com/ramisoul84/kfc-crm/internal/transport/http/handler"
 	"github.com/ramisoul84/kfc-crm/internal/transport/http/middleware"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
+	"github.com/ramisoul84/kfc-crm/pkg/jwt"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
 )
 
 // Server wraps the Fiber app with lifecycle methods.
 type Server struct {
-	app    *fiber.App
-	cfg    *config.Config
-	logger *logger.Logger
+	app          *fiber.App
+	cfg          *config.Config
+	logger       *logger.Logger
+	authHandler  *handler.AuthHandler
+	tokenManager *jwt.TokenManager
+	tokenRepo    repository.TokenRepository
 }
 
 // NewServer creates a Fiber app configured from cfg.
-func NewServer(cfg *config.Config, log *logger.Logger) *Server {
+func NewServer(
+	cfg *config.Config,
+	log *logger.Logger,
+	authHandler *handler.AuthHandler,
+	tokenManager *jwt.TokenManager,
+	tokenRepo repository.TokenRepository,
+) *Server {
 	app := fiber.New(fiber.Config{
 		AppName:               cfg.App.Name,
 		ReadTimeout:           cfg.HTTP.ReadTimeout,
@@ -34,9 +46,12 @@ func NewServer(cfg *config.Config, log *logger.Logger) *Server {
 	})
 
 	s := &Server{
-		app:    app,
-		cfg:    cfg,
-		logger: log,
+		app:          app,
+		cfg:          cfg,
+		logger:       log,
+		authHandler:  authHandler,
+		tokenManager: tokenManager,
+		tokenRepo:    tokenRepo,
 	}
 
 	// Register middleware first, then routes
@@ -89,8 +104,18 @@ func (s *Server) registerRoutes() {
 	s.app.Get("/health", s.healthCheck)
 
 	// API v1
-	_ = s.app.Group("/api/v1")
+	api := s.app.Group("/api/v1")
 
+	// ── Auth (public) ──
+	auth := api.Group("/auth")
+	auth.Post("/login", s.authHandler.Login)
+	auth.Post("/refresh", s.authHandler.RefreshToken)
+
+	// Logout requires a valid access token
+	auth.Post("/logout",
+		middleware.Auth(s.tokenManager, s.tokenRepo),
+		s.authHandler.Logout,
+	)
 }
 
 // ═══════════════════════════════════════════════════════════════════
