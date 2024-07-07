@@ -65,18 +65,34 @@ func New(cfg *config.Config) (*App, error) {
 	// Repositories
 	userRepo := repository.NewUserRepository(db.DB)
 	tokenRepo := repository.NewTokenRepository(redisClient.Client)
+	regionRepo := repository.NewRegionRepository(db.DB)
+	restaurantRepo := repository.NewRestaurantRepository(db.DB)
+	deviceRepo := repository.NewDeviceRepository(db.DB)
+
+	// RBAC service
+	rbacService := service.NewRBACService(regionRepo, restaurantRepo, deviceRepo)
 
 	// Services
 	authService := service.NewAuthService(userRepo, tokenRepo, tokenManager, log)
+	regionService := service.NewRegionService(regionRepo, rbacService, log)
 
 	// Validator
 	v := validator.New()
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService, v)
+	regionHandler := handler.NewRegionHandler(regionService, v)
 
 	// Server
-	server := httpTransport.NewServer(cfg, log, authHandler, tokenManager, tokenRepo)
+	server := httpTransport.NewServer(
+		cfg,
+		log,
+		authHandler,
+		regionHandler,
+		tokenManager,
+		tokenRepo,
+		userRepo,
+	)
 
 	return &App{
 		config: cfg,

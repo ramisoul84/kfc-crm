@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 
 	"github.com/ramisoul84/kfc-crm/internal/domain"
 	"github.com/ramisoul84/kfc-crm/internal/service"
@@ -99,23 +98,20 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 
 // Logout handles POST /api/v1/auth/logout.
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
-	userIDStr := ctxutil.GetUserIDFromFiber(c)
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
+	user := ctxutil.GetUserFromFiber(c)
+	if user == nil {
 		return response.Error(c, domain.NewAuthenticationError("not authenticated"))
 	}
 
 	accessToken := extractBearerToken(c)
 
-	if err := h.authService.Logout(c.UserContext(), userID, accessToken); err != nil {
+	if err := h.authService.Logout(c.UserContext(), user.ID, accessToken); err != nil {
 		return response.Error(c, err)
 	}
 
 	h.clearRefreshCookie(c)
 
-	return response.Success(c, fiber.Map{
-		"message": "logged out successfully",
-	})
+	return response.Success(c, fiber.Map{"message": "logged out successfully"})
 }
 
 // ═══════════════════════════════════════════════════════════════════

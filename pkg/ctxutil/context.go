@@ -4,12 +4,16 @@ import (
 	"context"
 )
 
+// Keys — plain strings so they work with both context.Value and Fiber locals.
 const (
 	RequestIDKey = "request_id"
 	UserIDKey    = "user_id"
-	EmailKey     = "email"
-	RoleKey      = "role"
+	UserKey      = "user"
 )
+
+// ─────────────────────────────────────────────────────────────────
+// Standard context
+// ─────────────────────────────────────────────────────────────────
 
 // WithRequestID stores a request ID in the context.
 func WithRequestID(ctx context.Context, id string) context.Context {

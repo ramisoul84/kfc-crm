@@ -15,18 +15,15 @@ func Logging(log *logger.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 
-		// Run the request chain.
 		err := c.Next()
 
-		// Skip logging for health checks.
 		if c.Path() == "/health" {
 			return err
 		}
 
 		requestID := ctxutil.GetRequestIDFromFiber(c)
-		userID := ctxutil.GetUserIDFromFiber(c)
+		user := ctxutil.GetUserFromFiber(c)
 
-		// Build the log with common fields.
 		fields := []any{
 			"method", c.Method(),
 			"path", c.Path(),
@@ -35,13 +32,12 @@ func Logging(log *logger.Logger) fiber.Handler {
 			"ip", c.IP(),
 		}
 
-		if userID != "" {
-			fields = append(fields, "user_id", userID)
+		if user != nil {
+			fields = append(fields, "user_id", user.ID.String())
 		}
 
 		reqLog := log.WithRequestID(requestID)
 
-		// Log level by status class.
 		status := c.Response().StatusCode()
 		switch {
 		case status >= 500:
