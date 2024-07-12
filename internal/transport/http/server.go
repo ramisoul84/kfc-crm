@@ -20,14 +20,15 @@ import (
 
 // Server wraps the Fiber app with lifecycle methods.
 type Server struct {
-	app           *fiber.App
-	cfg           *config.Config
-	logger        *logger.Logger
-	authHandler   *handler.AuthHandler
-	regionHandler *handler.RegionHandler
-	tokenManager  *jwt.TokenManager
-	tokenRepo     repository.TokenRepository
-	userRepo      repository.UserRepository
+	app               *fiber.App
+	cfg               *config.Config
+	logger            *logger.Logger
+	authHandler       *handler.AuthHandler
+	regionHandler     *handler.RegionHandler
+	restaurantHandler *handler.RestaurantHandler
+	tokenManager      *jwt.TokenManager
+	tokenRepo         repository.TokenRepository
+	userRepo          repository.UserRepository
 }
 
 // NewServer creates a Fiber app configured from cfg.
@@ -36,6 +37,7 @@ func NewServer(
 	log *logger.Logger,
 	authHandler *handler.AuthHandler,
 	regionHandler *handler.RegionHandler,
+	restaurantHandler *handler.RestaurantHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -50,14 +52,15 @@ func NewServer(
 	})
 
 	s := &Server{
-		app:           app,
-		cfg:           cfg,
-		logger:        log,
-		authHandler:   authHandler,
-		regionHandler: regionHandler,
-		tokenManager:  tokenManager,
-		tokenRepo:     tokenRepo,
-		userRepo:      userRepo,
+		app:               app,
+		cfg:               cfg,
+		logger:            log,
+		authHandler:       authHandler,
+		regionHandler:     regionHandler,
+		restaurantHandler: restaurantHandler,
+		tokenManager:      tokenManager,
+		tokenRepo:         tokenRepo,
+		userRepo:          userRepo,
 	}
 
 	s.registerMiddleware()
@@ -133,6 +136,14 @@ func (s *Server) registerRoutes() {
 	regions.Get("/:id", s.regionHandler.GetByID)
 	regions.Put("/:id", s.regionHandler.Update)
 	regions.Delete("/:id", s.regionHandler.Delete)
+
+	// Restaurants
+	restaurants := protected.Group("/restaurants")
+	restaurants.Post("/", s.restaurantHandler.Create)
+	restaurants.Get("/", s.restaurantHandler.List)
+	restaurants.Get("/:id", s.restaurantHandler.GetByID)
+	restaurants.Put("/:id", s.restaurantHandler.Update)
+	restaurants.Delete("/:id", s.restaurantHandler.Delete)
 }
 
 // ═══════════════════════════════════════════════════════════════════
