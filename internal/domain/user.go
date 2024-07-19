@@ -28,7 +28,7 @@ type User struct {
 // CreateUserRequest is the payload for creating a user.
 type CreateUserRequest struct {
 	Email        string     `json:"email"         validate:"required,email,max=255"`
-	Role         Role       `json:"role"          validate:"required"`
+	Role         Role       `json:"role"          validate:"required,role"`
 	RegionID     *uuid.UUID `json:"region_id,omitempty"`
 	RestaurantID *uuid.UUID `json:"restaurant_id,omitempty"`
 }
