@@ -27,6 +27,7 @@ type Server struct {
 	regionHandler     *handler.RegionHandler
 	restaurantHandler *handler.RestaurantHandler
 	userHandler       *handler.UserHandler
+	deviceHandler     *handler.DeviceHandler
 	tokenManager      *jwt.TokenManager
 	tokenRepo         repository.TokenRepository
 	userRepo          repository.UserRepository
@@ -40,6 +41,7 @@ func NewServer(
 	regionHandler *handler.RegionHandler,
 	restaurantHandler *handler.RestaurantHandler,
 	userHandler *handler.UserHandler,
+	deviceHandler *handler.DeviceHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -61,6 +63,7 @@ func NewServer(
 		regionHandler:     regionHandler,
 		restaurantHandler: restaurantHandler,
 		userHandler:       userHandler,
+		deviceHandler:     deviceHandler,
 		tokenManager:      tokenManager,
 		tokenRepo:         tokenRepo,
 		userRepo:          userRepo,
@@ -160,6 +163,14 @@ func (s *Server) registerRoutes() {
 	users.Get("/:id", s.userHandler.GetByID)
 	users.Put("/:id", s.userHandler.Update)
 	users.Delete("/:id", s.userHandler.Delete)
+
+	// Devices
+	devices := protected.Group("/devices")
+	devices.Post("/", s.deviceHandler.Create)
+	devices.Get("/", s.deviceHandler.List)
+	devices.Get("/:id", s.deviceHandler.GetByID)
+	devices.Put("/:id", s.deviceHandler.Update)
+	devices.Delete("/:id", s.deviceHandler.Delete)
 }
 
 // ═══════════════════════════════════════════════════════════════════
