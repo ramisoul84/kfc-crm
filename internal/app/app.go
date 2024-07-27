@@ -64,18 +64,27 @@ func New(cfg *config.Config) (*App, error) {
 		cfg.JWT.RefreshDuration,
 	)
 
-	// Notification client (optional)
+	// Notification client
 	var notificationClient client.NotificationClient
+
 	if cfg.Notification.Enabled {
 		nc, err := client.NewNotificationClient(&cfg.Notification)
 		if err != nil {
-			log.Warn("notification client disabled: %v", err)
+			if cfg.IsProduction() {
+				return nil, fmt.Errorf("notification client: %w", err)
+			}
+			log.Warn("notification client unavailable, using no-op",
+				"address", cfg.Notification.Address,
+				"error", err,
+			)
+			notificationClient = client.NewNoopNotificationClient(log)
 		} else {
 			notificationClient = nc
 			log.Info("notification client initialized", "address", cfg.Notification.Address)
 		}
 	} else {
-		log.Info("notification client disabled by config")
+		log.Info("notification client disabled, using no-op")
+		notificationClient = client.NewNoopNotificationClient(log)
 	}
 
 	// Repositories
