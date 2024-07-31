@@ -116,13 +116,13 @@ var RolePermissions = map[Role][]Permission{
 		PermRestaurantCreate, PermRestaurantRead, PermRestaurantUpdate, PermRestaurantDelete,
 		PermUserCreate, PermUserRead, PermUserUpdate, PermUserDelete,
 		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDeviceDelete,
-		PermMenuRead, PermMenuWrite, PermMenuDelete,
+		PermMenuRead,
 	},
 	RoleRestaurantManager: {
 		PermRestaurantRead,
 		PermUserCreate, PermUserRead, PermUserUpdate,
 		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate,
-		PermMenuRead, PermMenuWrite,
+		PermMenuRead,
 	},
 	RoleShiftManager: {
 		PermRestaurantRead,
