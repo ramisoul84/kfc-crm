@@ -20,17 +20,18 @@ import (
 
 // Server wraps the Fiber app with lifecycle methods.
 type Server struct {
-	app               *fiber.App
-	cfg               *config.Config
-	logger            *logger.Logger
-	authHandler       *handler.AuthHandler
-	regionHandler     *handler.RegionHandler
-	restaurantHandler *handler.RestaurantHandler
-	userHandler       *handler.UserHandler
-	deviceHandler     *handler.DeviceHandler
-	tokenManager      *jwt.TokenManager
-	tokenRepo         repository.TokenRepository
-	userRepo          repository.UserRepository
+	app                 *fiber.App
+	cfg                 *config.Config
+	logger              *logger.Logger
+	authHandler         *handler.AuthHandler
+	regionHandler       *handler.RegionHandler
+	restaurantHandler   *handler.RestaurantHandler
+	userHandler         *handler.UserHandler
+	deviceHandler       *handler.DeviceHandler
+	menuCategoryHandler *handler.MenuCategoryHandler
+	tokenManager        *jwt.TokenManager
+	tokenRepo           repository.TokenRepository
+	userRepo            repository.UserRepository
 }
 
 // NewServer creates a Fiber app configured from cfg.
@@ -42,6 +43,7 @@ func NewServer(
 	restaurantHandler *handler.RestaurantHandler,
 	userHandler *handler.UserHandler,
 	deviceHandler *handler.DeviceHandler,
+	menuCategoryHandler *handler.MenuCategoryHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -56,17 +58,18 @@ func NewServer(
 	})
 
 	s := &Server{
-		app:               app,
-		cfg:               cfg,
-		logger:            log,
-		authHandler:       authHandler,
-		regionHandler:     regionHandler,
-		restaurantHandler: restaurantHandler,
-		userHandler:       userHandler,
-		deviceHandler:     deviceHandler,
-		tokenManager:      tokenManager,
-		tokenRepo:         tokenRepo,
-		userRepo:          userRepo,
+		app:                 app,
+		cfg:                 cfg,
+		logger:              log,
+		authHandler:         authHandler,
+		regionHandler:       regionHandler,
+		restaurantHandler:   restaurantHandler,
+		userHandler:         userHandler,
+		deviceHandler:       deviceHandler,
+		menuCategoryHandler: menuCategoryHandler,
+		tokenManager:        tokenManager,
+		tokenRepo:           tokenRepo,
+		userRepo:            userRepo,
 	}
 
 	s.registerMiddleware()
@@ -171,6 +174,16 @@ func (s *Server) registerRoutes() {
 	devices.Get("/:id", s.deviceHandler.GetByID)
 	devices.Put("/:id", s.deviceHandler.Update)
 	devices.Delete("/:id", s.deviceHandler.Delete)
+
+	// Menu
+	menu := protected.Group("/menu")
+
+	categories := menu.Group("/categories")
+	categories.Post("/", s.menuCategoryHandler.Create)
+	categories.Get("/", s.menuCategoryHandler.List)
+	categories.Get("/:id", s.menuCategoryHandler.GetByID)
+	categories.Put("/:id", s.menuCategoryHandler.Update)
+	categories.Delete("/:id", s.menuCategoryHandler.Delete)
 }
 
 // ═══════════════════════════════════════════════════════════════════
