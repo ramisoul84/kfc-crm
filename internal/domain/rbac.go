@@ -92,10 +92,15 @@ const (
 	PermDeviceUpdate Permission = "device.update"
 	PermDeviceDelete Permission = "device.delete"
 
-	// Menu permissions
-	PermMenuRead   Permission = "menu.read"
-	PermMenuWrite  Permission = "menu.write"
-	PermMenuDelete Permission = "menu.delete"
+	// Menu Category permissions
+	PermMenuCategoryRead   Permission = "menu.category.read"
+	PermMenuCategoryWrite  Permission = "menu.category.write"
+	PermMenuCategoryDelete Permission = "menu.category.delete"
+
+	// Menu Item permissions
+	PermMenuItemRead   Permission = "menu.item.read"
+	PermMenuItemWrite  Permission = "menu.item.write"
+	PermMenuItemDelete Permission = "menu.item.delete"
 )
 
 // ═══════════════════════════════════════════════════════════════════
@@ -109,30 +114,35 @@ var RolePermissions = map[Role][]Permission{
 		PermRestaurantCreate, PermRestaurantRead, PermRestaurantUpdate, PermRestaurantDelete,
 		PermUserCreate, PermUserRead, PermUserUpdate, PermUserDelete,
 		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDeviceDelete,
-		PermMenuRead, PermMenuWrite, PermMenuDelete,
+		PermMenuCategoryRead, PermMenuCategoryWrite, PermMenuCategoryDelete,
+		PermMenuItemRead, PermMenuItemWrite, PermMenuItemDelete,
 	},
 	RoleRegionalManager: {
 		PermRegionRead,
 		PermRestaurantCreate, PermRestaurantRead, PermRestaurantUpdate, PermRestaurantDelete,
 		PermUserCreate, PermUserRead, PermUserUpdate, PermUserDelete,
 		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDeviceDelete,
-		PermMenuRead,
+		PermMenuCategoryRead,
+		PermMenuItemRead,
 	},
 	RoleRestaurantManager: {
 		PermRestaurantRead,
 		PermUserCreate, PermUserRead, PermUserUpdate,
 		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate,
-		PermMenuRead,
+		PermMenuCategoryRead,
+		PermMenuItemRead,
 	},
 	RoleShiftManager: {
 		PermRestaurantRead,
 		PermUserRead,
 		PermDeviceRead,
-		PermMenuRead,
+		PermMenuCategoryRead,
+		PermMenuItemRead,
 	},
 	RoleCashier: {
 		PermRestaurantRead,
-		PermMenuRead,
+		PermMenuCategoryRead,
+		PermMenuItemRead,
 	},
 }
 
