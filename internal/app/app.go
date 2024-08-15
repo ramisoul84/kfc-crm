@@ -94,6 +94,7 @@ func New(cfg *config.Config) (*App, error) {
 	restaurantRepo := repository.NewRestaurantRepository(db.DB)
 	deviceRepo := repository.NewDeviceRepository(db.DB)
 	menuCategoryRepo := repository.NewMenuCategoryRepository(db.DB)
+	menuItemRepo := repository.NewMenuItemRepository(db.DB)
 
 	// RBAC service
 	rbacService := service.NewRBACService(regionRepo, restaurantRepo, deviceRepo)
@@ -105,6 +106,7 @@ func New(cfg *config.Config) (*App, error) {
 	userService := service.NewUserService(userRepo, rbacService, notificationClient, log)
 	deviceService := service.NewDeviceService(deviceRepo, rbacService, log)
 	menuCategoryService := service.NewMenuCategoryService(menuCategoryRepo, rbacService, log)
+	menuItemService := service.NewMenuItemService(menuItemRepo, menuCategoryRepo, rbacService, log)
 
 	// Validator
 	v := validator.New()
@@ -116,6 +118,7 @@ func New(cfg *config.Config) (*App, error) {
 	userHandler := handler.NewUserHandler(userService, v)
 	deviceHandler := handler.NewDeviceHandler(deviceService, v)
 	menuCategoryHandler := handler.NewMenuCategoryHandler(menuCategoryService, v)
+	menuItemHandler := handler.NewMenuItemHandler(menuItemService, v)
 
 	// Server
 	server := httpTransport.NewServer(
@@ -127,6 +130,7 @@ func New(cfg *config.Config) (*App, error) {
 		userHandler,
 		deviceHandler,
 		menuCategoryHandler,
+		menuItemHandler,
 		tokenManager,
 		tokenRepo,
 		userRepo,

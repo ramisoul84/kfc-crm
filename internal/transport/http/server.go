@@ -20,18 +20,22 @@ import (
 
 // Server wraps the Fiber app with lifecycle methods.
 type Server struct {
-	app                 *fiber.App
-	cfg                 *config.Config
-	logger              *logger.Logger
-	authHandler         *handler.AuthHandler
-	regionHandler       *handler.RegionHandler
-	restaurantHandler   *handler.RestaurantHandler
-	userHandler         *handler.UserHandler
-	deviceHandler       *handler.DeviceHandler
+	app    *fiber.App
+	cfg    *config.Config
+	logger *logger.Logger
+
+	authHandler       *handler.AuthHandler
+	regionHandler     *handler.RegionHandler
+	restaurantHandler *handler.RestaurantHandler
+	userHandler       *handler.UserHandler
+	deviceHandler     *handler.DeviceHandler
+
 	menuCategoryHandler *handler.MenuCategoryHandler
-	tokenManager        *jwt.TokenManager
-	tokenRepo           repository.TokenRepository
-	userRepo            repository.UserRepository
+	menuItemHandler     *handler.MenuItemHandler
+
+	tokenManager *jwt.TokenManager
+	tokenRepo    repository.TokenRepository
+	userRepo     repository.UserRepository
 }
 
 // NewServer creates a Fiber app configured from cfg.
@@ -44,6 +48,7 @@ func NewServer(
 	userHandler *handler.UserHandler,
 	deviceHandler *handler.DeviceHandler,
 	menuCategoryHandler *handler.MenuCategoryHandler,
+	menuItemHandler *handler.MenuItemHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -67,6 +72,7 @@ func NewServer(
 		userHandler:         userHandler,
 		deviceHandler:       deviceHandler,
 		menuCategoryHandler: menuCategoryHandler,
+		menuItemHandler:     menuItemHandler,
 		tokenManager:        tokenManager,
 		tokenRepo:           tokenRepo,
 		userRepo:            userRepo,
@@ -184,6 +190,14 @@ func (s *Server) registerRoutes() {
 	categories.Get("/:id", s.menuCategoryHandler.GetByID)
 	categories.Put("/:id", s.menuCategoryHandler.Update)
 	categories.Delete("/:id", s.menuCategoryHandler.Delete)
+
+	// Items
+	items := menu.Group("/items")
+	items.Post("/", s.menuItemHandler.Create)
+	items.Get("/", s.menuItemHandler.List)
+	items.Get("/:id", s.menuItemHandler.GetByID)
+	items.Put("/:id", s.menuItemHandler.Update)
+	items.Delete("/:id", s.menuItemHandler.Delete)
 }
 
 // ═══════════════════════════════════════════════════════════════════
