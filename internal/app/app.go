@@ -95,6 +95,7 @@ func New(cfg *config.Config) (*App, error) {
 	deviceRepo := repository.NewDeviceRepository(db.DB)
 	menuCategoryRepo := repository.NewMenuCategoryRepository(db.DB)
 	menuItemRepo := repository.NewMenuItemRepository(db.DB)
+	menuVariationRepo := repository.NewMenuItemVariationRepository(db.DB)
 
 	// RBAC service
 	rbacService := service.NewRBACService(regionRepo, restaurantRepo, deviceRepo)
@@ -107,6 +108,12 @@ func New(cfg *config.Config) (*App, error) {
 	deviceService := service.NewDeviceService(deviceRepo, rbacService, log)
 	menuCategoryService := service.NewMenuCategoryService(menuCategoryRepo, rbacService, log)
 	menuItemService := service.NewMenuItemService(menuItemRepo, menuCategoryRepo, rbacService, log)
+	menuItemVariationService := service.NewMenuItemVariationService(
+		menuVariationRepo,
+		menuItemRepo,
+		rbacService,
+		log,
+	)
 
 	// Validator
 	v := validator.New()
@@ -119,6 +126,7 @@ func New(cfg *config.Config) (*App, error) {
 	deviceHandler := handler.NewDeviceHandler(deviceService, v)
 	menuCategoryHandler := handler.NewMenuCategoryHandler(menuCategoryService, v)
 	menuItemHandler := handler.NewMenuItemHandler(menuItemService, v)
+	menuItemVariationHandler := handler.NewMenuItemVariationHandler(menuItemVariationService, v)
 
 	// Server
 	server := httpTransport.NewServer(
@@ -131,6 +139,7 @@ func New(cfg *config.Config) (*App, error) {
 		deviceHandler,
 		menuCategoryHandler,
 		menuItemHandler,
+		menuItemVariationHandler,
 		tokenManager,
 		tokenRepo,
 		userRepo,
