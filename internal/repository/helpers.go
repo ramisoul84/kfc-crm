@@ -38,6 +38,18 @@ func isNotNullError(err error) bool {
 		strings.Contains(msg, "null value in column")
 }
 
+// isCheckConstraintError reports whether the error is a PostgreSQL
+// CHECK constraint violation (SQLSTATE 23514).
+func isCheckConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "23514") ||
+		strings.Contains(msg, "check constraint") ||
+		strings.Contains(msg, "violates check constraint")
+}
+
 // nullableString returns nil for empty strings, so the DB stores NULL
 // instead of an empty string. Useful for optional text columns.
 func nullableString(s string) interface{} {
