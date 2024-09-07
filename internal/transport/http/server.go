@@ -33,6 +33,7 @@ type Server struct {
 	menuCategoryHandler      *handler.MenuCategoryHandler
 	menuItemHandler          *handler.MenuItemHandler
 	menuItemVariationHandler *handler.MenuItemVariationHandler
+	menuItemOverrideHandler  *handler.MenuItemOverrideHandler
 
 	tokenManager *jwt.TokenManager
 	tokenRepo    repository.TokenRepository
@@ -51,6 +52,7 @@ func NewServer(
 	menuCategoryHandler *handler.MenuCategoryHandler,
 	menuItemHandler *handler.MenuItemHandler,
 	menuItemVariationHandler *handler.MenuItemVariationHandler,
+	menuItemOverrideHandler *handler.MenuItemOverrideHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -76,6 +78,7 @@ func NewServer(
 		menuCategoryHandler:      menuCategoryHandler,
 		menuItemHandler:          menuItemHandler,
 		menuItemVariationHandler: menuItemVariationHandler,
+		menuItemOverrideHandler:  menuItemOverrideHandler,
 		tokenManager:             tokenManager,
 		tokenRepo:                tokenRepo,
 		userRepo:                 userRepo,
@@ -211,6 +214,17 @@ func (s *Server) registerRoutes() {
 
 	// Variations for a specific item
 	menu.Get("/items/:item_id/variations", s.menuItemVariationHandler.ListByItem)
+
+	// Overrides
+	overrides := menu.Group("/overrides")
+	overrides.Post("/", s.menuItemOverrideHandler.Set)
+	overrides.Get("/:id", s.menuItemOverrideHandler.GetByID)
+	overrides.Put("/:id", s.menuItemOverrideHandler.Update)
+	overrides.Delete("/:id", s.menuItemOverrideHandler.Delete)
+
+	// Overrides scoped to a restaurant
+	protected.Get("/restaurants/:restaurant_id/menu-overrides",
+		s.menuItemOverrideHandler.ListByRestaurant)
 
 }
 
