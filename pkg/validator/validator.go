@@ -65,6 +65,8 @@ func New() *Validator {
 		_ = v.RegisterValidation("phone", validatePhone)
 		_ = v.RegisterValidation("uppercase", validateUppercase)
 		_ = v.RegisterValidation("role", validateRole)
+		_ = v.RegisterValidation("scope", validateScope)
+		_ = v.RegisterValidation("discount_type", validateDiscountType)
 
 		validatorInstance = &Validator{validate: v}
 	})
@@ -164,6 +166,22 @@ func validateRole(fl validator.FieldLevel) bool {
 func isValidRole(role string) bool {
 	switch role {
 	case "super_admin", "regional_manager", "restaurant_manager", "shift_manager", "cashier":
+		return true
+	}
+	return false
+}
+
+func validateScope(fl validator.FieldLevel) bool {
+	switch fl.Field().String() {
+	case "global", "region", "restaurant":
+		return true
+	}
+	return false
+}
+
+func validateDiscountType(fl validator.FieldLevel) bool {
+	switch fl.Field().String() {
+	case "percentage", "fixed":
 		return true
 	}
 	return false
