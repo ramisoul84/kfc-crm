@@ -97,6 +97,7 @@ func New(cfg *config.Config) (*App, error) {
 	menuItemRepo := repository.NewMenuItemRepository(db.DB)
 	menuVariationRepo := repository.NewMenuItemVariationRepository(db.DB)
 	menuOverrideRepo := repository.NewMenuItemOverrideRepository(db.DB)
+	menuPromotionRepo := repository.NewMenuPromotionRepository(db.DB)
 
 	// RBAC service
 	rbacService := service.NewRBACService(regionRepo, restaurantRepo, deviceRepo)
@@ -121,6 +122,7 @@ func New(cfg *config.Config) (*App, error) {
 		rbacService,
 		log,
 	)
+	menuPromotionService := service.NewMenuPromotionService(menuPromotionRepo, rbacService, log)
 
 	// Validator
 	v := validator.New()
@@ -135,6 +137,7 @@ func New(cfg *config.Config) (*App, error) {
 	menuItemHandler := handler.NewMenuItemHandler(menuItemService, v)
 	menuItemVariationHandler := handler.NewMenuItemVariationHandler(menuItemVariationService, v)
 	menuItemOverrideHandler := handler.NewMenuItemOverrideHandler(menuItemOverrideService, v)
+	menuPromotionHandler := handler.NewMenuPromotionHandler(menuPromotionService, v)
 
 	// Server
 	server := httpTransport.NewServer(
@@ -149,6 +152,7 @@ func New(cfg *config.Config) (*App, error) {
 		menuItemHandler,
 		menuItemVariationHandler,
 		menuItemOverrideHandler,
+		menuPromotionHandler,
 		tokenManager,
 		tokenRepo,
 		userRepo,
