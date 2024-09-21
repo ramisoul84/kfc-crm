@@ -10,6 +10,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/ramisoul84/kfc-crm/internal/config"
+	"github.com/ramisoul84/kfc-crm/internal/transport/http/middleware"
+	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
 )
 
@@ -69,6 +71,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // ═══════════════════════════════════════════════════════════════════
 
 func (s *Server) registerMiddleware() {
+	s.app.Use(middleware.RequestID())
 	s.app.Use(recover.New())
 	s.app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
@@ -108,12 +111,13 @@ func (s *Server) healthCheck(c *fiber.Ctx) error {
 func errorHandler(log *logger.Logger) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		code := fiber.StatusInternalServerError
-
 		if e, ok := err.(*fiber.Error); ok {
 			code = e.Code
 		}
 
-		log.Error("unhandled error",
+		requestID := ctxutil.GetRequestIDFromFiber(c)
+
+		log.WithRequestID(requestID).Error("unhandled error",
 			"method", c.Method(),
 			"path", c.Path(),
 			"status", code,
@@ -126,7 +130,8 @@ func errorHandler(log *logger.Logger) fiber.ErrorHandler {
 				"type":    "internal",
 				"message": err.Error(),
 			},
-			"timestamp": time.Now().Unix(),
+			"request_id": requestID,
+			"timestamp":  time.Now().Unix(),
 		})
 	}
 }
