@@ -2,12 +2,14 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ramisoul84/kfc-crm/internal/client"
 	"github.com/ramisoul84/kfc-crm/internal/config"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/internal/service"
+	grpcTransport "github.com/ramisoul84/kfc-crm/internal/transport/grpc"
 	httpTransport "github.com/ramisoul84/kfc-crm/internal/transport/http"
 	"github.com/ramisoul84/kfc-crm/internal/transport/http/handler"
 	"github.com/ramisoul84/kfc-crm/pkg/database"
@@ -24,6 +26,7 @@ type App struct {
 	redis              *database.Redis
 	notificationClient client.NotificationClient
 	server             *httpTransport.Server
+	grpcServer         *grpcTransport.Transport
 }
 
 // New creates and wires the application.
@@ -167,6 +170,10 @@ func New(cfg *config.Config) (*App, error) {
 		userRepo,
 	)
 
+	// gRPC server (NEW)
+	menuServer := grpcTransport.NewMenuServer(effectiveMenuService, log)
+	grpcServer := grpcTransport.NewTransport(cfg, log, menuServer)
+
 	return &App{
 		config:             cfg,
 		logger:             log,
@@ -174,20 +181,54 @@ func New(cfg *config.Config) (*App, error) {
 		redis:              redisClient,
 		notificationClient: notificationClient,
 		server:             server,
+		grpcServer:         grpcServer,
 	}, nil
 }
 
-// Start begins serving HTTP requests.
-func (a *App) Start() error {
-	return a.server.Start()
+// // Start begins serving both HTTP and gRPC.
+func (a *App) Start(ctx context.Context) error {
+	a.logger.Info("starting transports")
+
+	errCh := make(chan error, 2)
+
+	go func() {
+		if err := a.server.Start(); err != nil {
+			errCh <- fmt.Errorf("http: %w", err)
+		}
+	}()
+	go func() {
+		if err := a.grpcServer.Start(); err != nil {
+			errCh <- fmt.Errorf("grpc: %w", err)
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		a.logger.Info("shutdown signal received")
+		return nil
+	case err := <-errCh:
+		a.logger.Error("transport failed", "error", err)
+		return err
+	}
 }
 
-// Shutdown gracefully stops the application.
+// Shutdown gracefully stops all transports and releases resources.
 func (a *App) Shutdown(ctx context.Context) error {
 	a.logger.Info("shutting down application")
 
+	var errs []error
+
 	if err := a.server.Shutdown(ctx); err != nil {
-		a.logger.Error("server shutdown failed", "error", err)
+		a.logger.Error("http shutdown failed", "error", err)
+		errs = append(errs, fmt.Errorf("http shutdown: %w", err))
+	}
+	if err := a.grpcServer.Shutdown(ctx); err != nil {
+		a.logger.Error("grpc shutdown failed", "error", err)
+		errs = append(errs, fmt.Errorf("grpc shutdown: %w", err))
+	}
+
+	if a.notificationClient != nil {
+		_ = a.notificationClient.Close()
 	}
 	if a.redis != nil {
 		_ = a.redis.Close()
@@ -196,10 +237,6 @@ func (a *App) Shutdown(ctx context.Context) error {
 		_ = a.db.Close()
 	}
 
-	if a.notificationClient != nil {
-		_ = a.notificationClient.Close()
-	}
-
 	a.logger.Info("shutdown complete")
-	return nil
+	return errors.Join(errs...)
 }

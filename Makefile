@@ -23,11 +23,11 @@ build:
 
 proto-gen:
 	@echo "Generating protobuf files..."
-	@mkdir -p gen
-	protoc \
-		--go_out=. \
-		--go_opt=module=github.com/ramisoul84/kfc-crm \
-		--go-grpc_out=. \
-		--go-grpc_opt=module=github.com/ramisoul84/kfc-crm \
-		proto/notification/v1/notification.proto
+	@find proto -name '*.proto' -print0 | xargs -0 -n1 \
+		protoc \
+			--go_out=. \
+			--go_opt=module=github.com/ramisoul84/kfc-crm \
+			--go-grpc_out=. \
+			--go-grpc_opt=module=github.com/ramisoul84/kfc-crm \
+			--proto_path=.
 	@echo "✅ Proto files generated"
