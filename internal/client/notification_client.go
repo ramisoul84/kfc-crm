@@ -15,8 +15,6 @@ import (
 // NotificationClient sends notifications to the notification service.
 type NotificationClient interface {
 	SendWelcomeEmail(ctx context.Context, req *WelcomeEmail) error
-	SendPasswordResetEmail(ctx context.Context, req *PasswordResetEmail) error
-	SendEmail(ctx context.Context, req *GenericEmail) error
 	Close() error
 }
 
@@ -31,19 +29,6 @@ type WelcomeEmail struct {
 	InitialPassword string
 	RestaurantID    string
 	RegionID        string
-}
-
-type PasswordResetEmail struct {
-	To          string
-	Email       string
-	NewPassword string
-}
-
-type GenericEmail struct {
-	To      string
-	Subject string
-	Body    string
-	IsHTML  bool
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -90,43 +75,6 @@ func (c *notificationClient) SendWelcomeEmail(ctx context.Context, req *WelcomeE
 	}
 	if !resp.Success {
 		return fmt.Errorf("notification service rejected welcome email: %s", resp.Message)
-	}
-	return nil
-}
-
-func (c *notificationClient) SendPasswordResetEmail(ctx context.Context, req *PasswordResetEmail) error {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	resp, err := c.client.SendPasswordResetEmail(ctx, &notificationv1.SendPasswordResetEmailRequest{
-		To:          req.To,
-		Email:       req.Email,
-		NewPassword: req.NewPassword,
-	})
-	if err != nil {
-		return fmt.Errorf("send password reset email: %w", err)
-	}
-	if !resp.Success {
-		return fmt.Errorf("notification service rejected password reset email: %s", resp.Message)
-	}
-	return nil
-}
-
-func (c *notificationClient) SendEmail(ctx context.Context, req *GenericEmail) error {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	resp, err := c.client.SendEmail(ctx, &notificationv1.SendEmailRequest{
-		To:      req.To,
-		Subject: req.Subject,
-		Body:    req.Body,
-		IsHtml:  req.IsHTML,
-	})
-	if err != nil {
-		return fmt.Errorf("send email: %w", err)
-	}
-	if !resp.Success {
-		return fmt.Errorf("notification service rejected email: %s", resp.Message)
 	}
 	return nil
 }

@@ -8,8 +8,6 @@ import "google/protobuf/timestamp.proto";
 
 service NotificationService {
   rpc SendWelcomeEmail(SendWelcomeEmailRequest) returns (SendWelcomeEmailResponse);
-  rpc SendPasswordResetEmail(SendPasswordResetEmailRequest) returns (SendPasswordResetEmailResponse);
-  rpc SendEmail(SendEmailRequest) returns (SendEmailResponse);
 }
 
 // ─────────── Welcome Email ───────────
@@ -24,37 +22,6 @@ message SendWelcomeEmailRequest {
 }
 
 message SendWelcomeEmailResponse {
-  bool   success         = 1;
-  string message         = 2;
-  string notification_id = 3;
-  google.protobuf.Timestamp sent_at = 4;
-}
-
-// ─────────── Password Reset ───────────
-
-message SendPasswordResetEmailRequest {
-  string to           = 1;
-  string email        = 2;
-  string new_password = 3;
-}
-
-message SendPasswordResetEmailResponse {
-  bool   success         = 1;
-  string message         = 2;
-  string notification_id = 3;
-  google.protobuf.Timestamp sent_at = 4;
-}
-
-// ─────────── Generic Email ───────────
-
-message SendEmailRequest {
-  string to      = 1;
-  string subject = 2;
-  string body    = 3;
-  bool   is_html = 4;
-}
-
-message SendEmailResponse {
   bool   success         = 1;
   string message         = 2;
   string notification_id = 3;
