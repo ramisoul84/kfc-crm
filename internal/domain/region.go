@@ -33,6 +33,14 @@ type UpdateRegionRequest struct {
 	IsActive *bool  `json:"is_active,omitempty"`
 }
 
+// RegionFilter represents filtering and pagination options for listing regions.
+type RegionFilter struct {
+	Search   string
+	IsActive *bool
+	Limit    int
+	Offset   int
+}
+
 // RegionResponse is the API response for a region.
 type RegionResponse struct {
 	ID        uuid.UUID `json:"id"`
