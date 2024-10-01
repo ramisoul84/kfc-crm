@@ -15,6 +15,7 @@ import (
 // NotificationClient sends notifications to the notification service.
 type NotificationClient interface {
 	SendWelcomeEmail(ctx context.Context, req *WelcomeEmail) error
+	SendDevicePairingEmail(ctx context.Context, req *DevicePairingEmail) error
 	Close() error
 }
 
@@ -29,6 +30,22 @@ type WelcomeEmail struct {
 	InitialPassword string
 	RestaurantID    string
 	RegionID        string
+}
+
+// DevicePairingEmail is the payload for a batch pairing email.
+type DevicePairingEmail struct {
+	To             string
+	RestaurantID   string
+	RestaurantName string
+	ExpiresAt      time.Time
+	Devices        []DevicePairingItem
+}
+
+// DevicePairingItem is one row in the pairing email table.
+type DevicePairingItem struct {
+	SerialNumber string
+	DeviceType   string
+	Code         string
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -75,6 +92,35 @@ func (c *notificationClient) SendWelcomeEmail(ctx context.Context, req *WelcomeE
 	}
 	if !resp.Success {
 		return fmt.Errorf("notification service rejected welcome email: %s", resp.Message)
+	}
+	return nil
+}
+
+func (c *notificationClient) SendDevicePairingEmail(ctx context.Context, req *DevicePairingEmail) error {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	items := make([]*notificationv1.PairingItem, 0, len(req.Devices))
+	for _, d := range req.Devices {
+		items = append(items, &notificationv1.PairingItem{
+			SerialNumber: d.SerialNumber,
+			DeviceType:   d.DeviceType,
+			Code:         d.Code,
+		})
+	}
+
+	resp, err := c.client.SendDevicePairingEmail(ctx, &notificationv1.SendDevicePairingEmailRequest{
+		To:             req.To,
+		RestaurantId:   req.RestaurantID,
+		RestaurantName: req.RestaurantName,
+		ExpiresAt:      req.ExpiresAt.Unix(),
+		Devices:        items,
+	})
+	if err != nil {
+		return fmt.Errorf("send device pairing email: %w", err)
+	}
+	if !resp.Success {
+		return fmt.Errorf("notification service rejected pairing email: %s", resp.Message)
 	}
 	return nil
 }

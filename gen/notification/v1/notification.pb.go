@@ -174,6 +174,202 @@ func (x *SendWelcomeEmailResponse) GetSentAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type SendDevicePairingEmailRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	To             string                 `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
+	RestaurantId   string                 `protobuf:"bytes,2,opt,name=restaurant_id,json=restaurantId,proto3" json:"restaurant_id,omitempty"`
+	RestaurantName string                 `protobuf:"bytes,3,opt,name=restaurant_name,json=restaurantName,proto3" json:"restaurant_name,omitempty"`
+	ExpiresAt      int64                  `protobuf:"varint,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"` // unix seconds
+	Devices        []*PairingItem         `protobuf:"bytes,5,rep,name=devices,proto3" json:"devices,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SendDevicePairingEmailRequest) Reset() {
+	*x = SendDevicePairingEmailRequest{}
+	mi := &file_proto_notification_v1_notification_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendDevicePairingEmailRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendDevicePairingEmailRequest) ProtoMessage() {}
+
+func (x *SendDevicePairingEmailRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_notification_v1_notification_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendDevicePairingEmailRequest.ProtoReflect.Descriptor instead.
+func (*SendDevicePairingEmailRequest) Descriptor() ([]byte, []int) {
+	return file_proto_notification_v1_notification_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SendDevicePairingEmailRequest) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *SendDevicePairingEmailRequest) GetRestaurantId() string {
+	if x != nil {
+		return x.RestaurantId
+	}
+	return ""
+}
+
+func (x *SendDevicePairingEmailRequest) GetRestaurantName() string {
+	if x != nil {
+		return x.RestaurantName
+	}
+	return ""
+}
+
+func (x *SendDevicePairingEmailRequest) GetExpiresAt() int64 {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return 0
+}
+
+func (x *SendDevicePairingEmailRequest) GetDevices() []*PairingItem {
+	if x != nil {
+		return x.Devices
+	}
+	return nil
+}
+
+type PairingItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SerialNumber  string                 `protobuf:"bytes,1,opt,name=serial_number,json=serialNumber,proto3" json:"serial_number,omitempty"`
+	DeviceType    string                 `protobuf:"bytes,2,opt,name=device_type,json=deviceType,proto3" json:"device_type,omitempty"`
+	Code          string                 `protobuf:"bytes,3,opt,name=code,proto3" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PairingItem) Reset() {
+	*x = PairingItem{}
+	mi := &file_proto_notification_v1_notification_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PairingItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PairingItem) ProtoMessage() {}
+
+func (x *PairingItem) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_notification_v1_notification_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PairingItem.ProtoReflect.Descriptor instead.
+func (*PairingItem) Descriptor() ([]byte, []int) {
+	return file_proto_notification_v1_notification_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *PairingItem) GetSerialNumber() string {
+	if x != nil {
+		return x.SerialNumber
+	}
+	return ""
+}
+
+func (x *PairingItem) GetDeviceType() string {
+	if x != nil {
+		return x.DeviceType
+	}
+	return ""
+}
+
+func (x *PairingItem) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+type SendDevicePairingEmailResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	SentAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendDevicePairingEmailResponse) Reset() {
+	*x = SendDevicePairingEmailResponse{}
+	mi := &file_proto_notification_v1_notification_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendDevicePairingEmailResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendDevicePairingEmailResponse) ProtoMessage() {}
+
+func (x *SendDevicePairingEmailResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_notification_v1_notification_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendDevicePairingEmailResponse.ProtoReflect.Descriptor instead.
+func (*SendDevicePairingEmailResponse) Descriptor() ([]byte, []int) {
+	return file_proto_notification_v1_notification_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SendDevicePairingEmailResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SendDevicePairingEmailResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *SendDevicePairingEmailResponse) GetSentAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SentAt
+	}
+	return nil
+}
+
 var File_proto_notification_v1_notification_proto protoreflect.FileDescriptor
 
 const file_proto_notification_v1_notification_proto_rawDesc = "" +
@@ -190,9 +386,26 @@ const file_proto_notification_v1_notification_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12'\n" +
 	"\x0fnotification_id\x18\x03 \x01(\tR\x0enotificationId\x123\n" +
-	"\asent_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt2~\n" +
+	"\asent_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\xd4\x01\n" +
+	"\x1dSendDevicePairingEmailRequest\x12\x0e\n" +
+	"\x02to\x18\x01 \x01(\tR\x02to\x12#\n" +
+	"\rrestaurant_id\x18\x02 \x01(\tR\frestaurantId\x12'\n" +
+	"\x0frestaurant_name\x18\x03 \x01(\tR\x0erestaurantName\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\x03R\texpiresAt\x126\n" +
+	"\adevices\x18\x05 \x03(\v2\x1c.notification.v1.PairingItemR\adevices\"g\n" +
+	"\vPairingItem\x12#\n" +
+	"\rserial_number\x18\x01 \x01(\tR\fserialNumber\x12\x1f\n" +
+	"\vdevice_type\x18\x02 \x01(\tR\n" +
+	"deviceType\x12\x12\n" +
+	"\x04code\x18\x03 \x01(\tR\x04code\"\x89\x01\n" +
+	"\x1eSendDevicePairingEmailResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x123\n" +
+	"\asent_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt2\xf9\x01\n" +
 	"\x13NotificationService\x12g\n" +
-	"\x10SendWelcomeEmail\x12(.notification.v1.SendWelcomeEmailRequest\x1a).notification.v1.SendWelcomeEmailResponseBBZ@github.com/ramisoul84/kfc-crm/gen/notification/v1;notificationv1b\x06proto3"
+	"\x10SendWelcomeEmail\x12(.notification.v1.SendWelcomeEmailRequest\x1a).notification.v1.SendWelcomeEmailResponse\x12y\n" +
+	"\x16SendDevicePairingEmail\x12..notification.v1.SendDevicePairingEmailRequest\x1a/.notification.v1.SendDevicePairingEmailResponseBBZ@github.com/ramisoul84/kfc-crm/gen/notification/v1;notificationv1b\x06proto3"
 
 var (
 	file_proto_notification_v1_notification_proto_rawDescOnce sync.Once
@@ -206,21 +419,28 @@ func file_proto_notification_v1_notification_proto_rawDescGZIP() []byte {
 	return file_proto_notification_v1_notification_proto_rawDescData
 }
 
-var file_proto_notification_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_notification_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_proto_notification_v1_notification_proto_goTypes = []any{
-	(*SendWelcomeEmailRequest)(nil),  // 0: notification.v1.SendWelcomeEmailRequest
-	(*SendWelcomeEmailResponse)(nil), // 1: notification.v1.SendWelcomeEmailResponse
-	(*timestamppb.Timestamp)(nil),    // 2: google.protobuf.Timestamp
+	(*SendWelcomeEmailRequest)(nil),        // 0: notification.v1.SendWelcomeEmailRequest
+	(*SendWelcomeEmailResponse)(nil),       // 1: notification.v1.SendWelcomeEmailResponse
+	(*SendDevicePairingEmailRequest)(nil),  // 2: notification.v1.SendDevicePairingEmailRequest
+	(*PairingItem)(nil),                    // 3: notification.v1.PairingItem
+	(*SendDevicePairingEmailResponse)(nil), // 4: notification.v1.SendDevicePairingEmailResponse
+	(*timestamppb.Timestamp)(nil),          // 5: google.protobuf.Timestamp
 }
 var file_proto_notification_v1_notification_proto_depIdxs = []int32{
-	2, // 0: notification.v1.SendWelcomeEmailResponse.sent_at:type_name -> google.protobuf.Timestamp
-	0, // 1: notification.v1.NotificationService.SendWelcomeEmail:input_type -> notification.v1.SendWelcomeEmailRequest
-	1, // 2: notification.v1.NotificationService.SendWelcomeEmail:output_type -> notification.v1.SendWelcomeEmailResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	5, // 0: notification.v1.SendWelcomeEmailResponse.sent_at:type_name -> google.protobuf.Timestamp
+	3, // 1: notification.v1.SendDevicePairingEmailRequest.devices:type_name -> notification.v1.PairingItem
+	5, // 2: notification.v1.SendDevicePairingEmailResponse.sent_at:type_name -> google.protobuf.Timestamp
+	0, // 3: notification.v1.NotificationService.SendWelcomeEmail:input_type -> notification.v1.SendWelcomeEmailRequest
+	2, // 4: notification.v1.NotificationService.SendDevicePairingEmail:input_type -> notification.v1.SendDevicePairingEmailRequest
+	1, // 5: notification.v1.NotificationService.SendWelcomeEmail:output_type -> notification.v1.SendWelcomeEmailResponse
+	4, // 6: notification.v1.NotificationService.SendDevicePairingEmail:output_type -> notification.v1.SendDevicePairingEmailResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_proto_notification_v1_notification_proto_init() }
@@ -234,7 +454,7 @@ func file_proto_notification_v1_notification_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_notification_v1_notification_proto_rawDesc), len(file_proto_notification_v1_notification_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
