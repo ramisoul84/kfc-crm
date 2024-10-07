@@ -11,6 +11,7 @@ type Config struct {
 	App    AppConfig
 	HTTP   HTTPConfig
 	Logger LoggerConfig
+	DB     DatabaseConfig
 	Redis  RedisConfig
 	JWT    JWTConfig
 }
@@ -41,11 +42,20 @@ type LoggerConfig struct {
 	Service  string
 }
 
-// JWTConfig holds JWT configuration
-type JWTConfig struct {
-	Secret          string
-	AccessDuration  time.Duration
-	RefreshDuration time.Duration
+// DatabaseConfig holds PostgreSQL connection settings.
+type DatabaseConfig struct {
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	Name            string
+	SSLMode         string
+	MaxConns        int
+	MinConns        int
+	MaxConnLifetime time.Duration
+	MaxConnIdleTime time.Duration
+	ConnectTimeout  time.Duration
+	Timezone        string
 }
 
 // RedisConfig holds Redis connection settings.
@@ -59,6 +69,13 @@ type RedisConfig struct {
 	DialTimeout  time.Duration
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
+}
+
+// JWTConfig holds JWT configuration
+type JWTConfig struct {
+	Secret          string
+	AccessDuration  time.Duration
+	RefreshDuration time.Duration
 }
 
 // Load reads configuration from environment variables and validates it.
@@ -88,6 +105,21 @@ func Load() (*Config, error) {
 			Output:   getEnv("LOG_OUTPUT", defaultLogOutput(env)),
 			FilePath: getEnv("LOG_FILE_PATH", "logs/app.log"),
 			Service:  getEnv("LOG_SERVICE", "kfc-crm"),
+		},
+
+		DB: DatabaseConfig{
+			Host:            getEnv("DB_HOST", "localhost"),
+			Port:            getEnv("DB_PORT", "5432"),
+			User:            getEnv("DB_USER", "postgres"),
+			Password:        getEnv("DB_PASSWORD", "postgres"),
+			Name:            getEnv("DB_NAME", "kfc_crm"),
+			SSLMode:         getEnv("DB_SSL_MODE", "disable"),
+			MaxConns:        getEnvInt("DB_MAX_CONNS", 20),
+			MinConns:        getEnvInt("DB_MIN_CONNS", 5),
+			MaxConnLifetime: getEnvDuration("DB_MAX_CONN_LIFETIME", time.Hour),
+			MaxConnIdleTime: getEnvDuration("DB_MAX_CONN_IDLE_TIME", 30*time.Minute),
+			ConnectTimeout:  getEnvDuration("DB_CONNECT_TIMEOUT", 10*time.Second),
+			Timezone:        getEnv("DB_TIMEZONE", "Europe/Moscow"),
 		},
 
 		Redis: RedisConfig{
@@ -138,7 +170,9 @@ func (c *Config) Validate() error {
 
 	// Validate ports
 	ports := map[string]string{
-		"HTTP_PORT": c.HTTP.Port,
+		"HTTP_PORT":  c.HTTP.Port,
+		"DB_PORT":    c.DB.Port,
+		"REDIS_PORT": c.Redis.Port,
 	}
 
 	for name, port := range ports {
@@ -158,10 +192,29 @@ func (c *Config) Validate() error {
 		errors = append(errors, "JWT_ACCESS_DURATION must be less than JWT_REFRESH_DURATION")
 	}
 
+	// Validate database pool
+	if c.DB.MaxConns < c.DB.MinConns {
+		errors = append(errors, "DB_MAX_CONNS must be greater than or equal to DB_MIN_CONNS")
+	}
+
+	// Validate Redis pool
+	if c.Redis.PoolSize < c.Redis.MinIdleConns {
+		errors = append(errors, "REDIS_POOL_SIZE must be greater than or equal to REDIS_MIN_IDLE_CONNS")
+	}
+
 	// Production security checks
 	if c.App.Environment == "production" {
 		if len(c.JWT.Secret) < 32 {
 			errors = append(errors, "JWT_SECRET must be at least 32 characters in production")
+		}
+		if len(c.DB.Password) < 32 {
+			errors = append(errors, "DB_PASSWORD must be secure in production")
+		}
+		if len(c.Redis.Password) < 32 {
+			errors = append(errors, "REDIS_PASSWORD must be secure in production")
+		}
+		if c.DB.SSLMode != "require" && c.DB.SSLMode != "verify-full" {
+			errors = append(errors, "DB_SSL_MODE should be 'require' or 'verify-full' in production")
 		}
 	}
 
@@ -241,4 +294,14 @@ func isValidPort(port string) bool {
 		return false
 	}
 	return portNum > 0 && portNum < 65536
+}
+
+// DSN returns the PostgreSQL connection string.
+func (c *Config) DSN() string {
+	return fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s timezone=%s connect_timeout=%d",
+		c.DB.Host, c.DB.Port, c.DB.User, c.DB.Password,
+		c.DB.Name, c.DB.SSLMode, c.DB.Timezone,
+		int(c.DB.ConnectTimeout.Seconds()),
+	)
 }
