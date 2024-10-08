@@ -67,27 +67,24 @@ func New(cfg *config.Config) (*App, error) {
 		cfg.JWT.RefreshDuration,
 	)
 
-	// Notification client
-	var notificationClient client.NotificationClient
+	// ─────────────────────────────────────────────────────────────────
+	// gRPC clients to peer services
+	// ─────────────────────────────────────────────────────────────────
 
-	if cfg.Notification.Enabled {
-		nc, err := client.NewNotificationClient(&cfg.Notification)
-		if err != nil {
-			if cfg.IsProduction() {
-				return nil, fmt.Errorf("notification client: %w", err)
-			}
-			log.Warn("notification client unavailable, using no-op",
-				"address", cfg.Notification.Address,
-				"error", err,
-			)
-			notificationClient = client.NewNoopNotificationClient(log)
-		} else {
-			notificationClient = nc
-			log.Info("notification client initialized", "address", cfg.Notification.Address)
-		}
-	} else {
-		log.Info("notification client disabled, using no-op")
-		notificationClient = client.NewNoopNotificationClient(log)
+	// ─────────────────────────────────────────────────────────────────
+	// gRPC clients to peer services
+	// ─────────────────────────────────────────────────────────────────
+
+	// Notification client
+	notificationClient, err := buildNotificationClient(cfg, log)
+	if err != nil {
+		return nil, err
+	}
+
+	// UserAPI client
+	userAPIClient, err := buildUserAPIClient(cfg, log)
+	if err != nil {
+		return nil, err
 	}
 
 	// Repositories
@@ -111,7 +108,7 @@ func New(cfg *config.Config) (*App, error) {
 	regionService := service.NewRegionService(regionRepo, rbacService, log)
 	restaurantService := service.NewRestaurantService(restaurantRepo, rbacService, log)
 	userService := service.NewUserService(userRepo, rbacService, notificationClient, log)
-	deviceService := service.NewDeviceService(deviceRepo, rbacService, log)
+	deviceService := service.NewDeviceService(deviceRepo, restaurantRepo, rbacService, notificationClient, userAPIClient, log)
 	menuCategoryService := service.NewMenuCategoryService(menuCategoryRepo, rbacService, log)
 	menuItemService := service.NewMenuItemService(menuItemRepo, menuCategoryRepo, rbacService, log)
 	menuItemVariationService := service.NewMenuItemVariationService(
@@ -239,4 +236,53 @@ func (a *App) Shutdown(ctx context.Context) error {
 
 	a.logger.Info("shutdown complete")
 	return errors.Join(errs...)
+}
+
+// buildNotificationClient constructs the notification client, or a no-op
+// when disabled. In production, construction failures are fatal; elsewhere
+// they fall back to a no-op so the service still starts.
+func buildNotificationClient(cfg *config.Config, log *logger.Logger) (client.NotificationClient, error) {
+	if !cfg.Notification.Enabled {
+		log.Info("notification client disabled, using no-op")
+		return client.NewNoopNotificationClient(log), nil
+	}
+
+	nc, err := client.NewNotificationClient(&cfg.Notification)
+	if err != nil {
+		if cfg.IsProduction() {
+			return nil, fmt.Errorf("notification client: %w", err)
+		}
+		log.Warn("notification client unavailable, using no-op",
+			"address", cfg.Notification.Address,
+			"error", err,
+		)
+		return client.NewNoopNotificationClient(log), nil
+	}
+
+	log.Info("notification client initialized", "address", cfg.Notification.Address)
+	return nc, nil
+}
+
+// buildUserAPIClient constructs the userapi client, or a no-op when
+// disabled. Same fail-fast rules as buildNotificationClient.
+func buildUserAPIClient(cfg *config.Config, log *logger.Logger) (client.UserAPIClient, error) {
+	if !cfg.UserAPI.Enabled {
+		log.Info("userapi client disabled, using no-op")
+		return client.NewNoopUserAPIClient(log), nil
+	}
+
+	uc, err := client.NewUserAPIClient(&cfg.UserAPI)
+	if err != nil {
+		if cfg.IsProduction() {
+			return nil, fmt.Errorf("userapi client: %w", err)
+		}
+		log.Warn("userapi client unavailable, using no-op",
+			"address", cfg.UserAPI.Address,
+			"error", err,
+		)
+		return client.NewNoopUserAPIClient(log), nil
+	}
+
+	log.Info("userapi client initialized", "address", cfg.UserAPI.Address)
+	return uc, nil
 }

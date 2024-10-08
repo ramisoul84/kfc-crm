@@ -19,6 +19,7 @@ type DeviceRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Device, error)
 	GetBySerialNumber(ctx context.Context, serial string) (*domain.Device, error)
 	List(ctx context.Context, filter domain.DeviceFilter) ([]*domain.Device, int, error)
+	ListByRestaurant(ctx context.Context, restaurantID uuid.UUID) ([]*domain.Device, error) // NEW
 	Update(ctx context.Context, device *domain.Device) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -169,6 +170,29 @@ func (r *deviceRepo) List(ctx context.Context, filter domain.DeviceFilter) ([]*d
 		return nil, 0, fmt.Errorf("list devices: %w", err)
 	}
 	return devices, total, nil
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LIST BY RESTAURANT
+// ═══════════════════════════════════════════════════════════════════
+
+func (r *deviceRepo) ListByRestaurant(
+	ctx context.Context,
+	restaurantID uuid.UUID,
+) ([]*domain.Device, error) {
+	query := `
+		SELECT id, restaurant_id, type, serial_number, is_active,
+		       created_at, updated_at
+		FROM devices
+		WHERE restaurant_id = $1 AND deleted_at IS NULL
+		ORDER BY created_at ASC
+	`
+
+	devices := make([]*domain.Device, 0)
+	if err := r.db.SelectContext(ctx, &devices, query, restaurantID); err != nil {
+		return nil, fmt.Errorf("list devices by restaurant: %w", err)
+	}
+	return devices, nil
 }
 
 // ═══════════════════════════════════════════════════════════════════
