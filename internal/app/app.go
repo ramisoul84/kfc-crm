@@ -2,16 +2,25 @@ package app
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ramisoul84/kfc-crm/internal/config"
+	"github.com/ramisoul84/kfc-crm/internal/repository"
+	"github.com/ramisoul84/kfc-crm/internal/service"
 	httpTransport "github.com/ramisoul84/kfc-crm/internal/transport/http"
+	"github.com/ramisoul84/kfc-crm/internal/transport/http/handler"
+	"github.com/ramisoul84/kfc-crm/pkg/database"
+	"github.com/ramisoul84/kfc-crm/pkg/jwt"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
+	"github.com/ramisoul84/kfc-crm/pkg/validator"
 )
 
 // App wires together all application components.
 type App struct {
 	config *config.Config
 	logger *logger.Logger
+	db     *database.Postgres
+	redis  *database.Redis
 	server *httpTransport.Server
 }
 
@@ -21,7 +30,7 @@ func New(cfg *config.Config) (*App, error) {
 		Level:    cfg.Logger.Level,
 		Format:   cfg.Logger.Format,
 		Output:   cfg.Logger.Output,
-		FilePath: "logs/app.log",
+		FilePath: cfg.Logger.FilePath,
 		Service:  cfg.Logger.Service,
 	})
 
@@ -31,12 +40,49 @@ func New(cfg *config.Config) (*App, error) {
 		"environment", cfg.App.Environment,
 	)
 
-	// Create HTTP server
-	server := httpTransport.NewServer(cfg, log)
+	// Postgres
+	db, err := database.NewPostgres(&cfg.DB, cfg.DSN())
+	if err != nil {
+		return nil, fmt.Errorf("database: %w", err)
+	}
+	log.Info("postgres connected")
+
+	// Redis
+	redisClient, err := database.NewRedis(&cfg.Redis)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("redis: %w", err)
+	}
+	log.Info("redis connected")
+
+	// JWT
+	tokenManager := jwt.NewTokenManager(
+		cfg.JWT.Secret,
+		cfg.JWT.AccessDuration,
+		cfg.JWT.RefreshDuration,
+	)
+
+	// Repositories
+	userRepo := repository.NewUserRepository(db.DB)
+	tokenRepo := repository.NewTokenRepository(redisClient.Client)
+
+	// Services
+	authService := service.NewAuthService(userRepo, tokenRepo, tokenManager, log)
+
+	// Validator
+	v := validator.New()
+
+	// Handlers
+	authHandler := handler.NewAuthHandler(authService, v)
+
+	// Server
+	server := httpTransport.NewServer(cfg, log, authHandler, tokenManager, tokenRepo)
 
 	return &App{
 		config: cfg,
 		logger: log,
+		db:     db,
+		redis:  redisClient,
 		server: server,
 	}, nil
 }
@@ -49,9 +95,15 @@ func (a *App) Start() error {
 // Shutdown gracefully stops the application.
 func (a *App) Shutdown(ctx context.Context) error {
 	a.logger.Info("shutting down application")
+
 	if err := a.server.Shutdown(ctx); err != nil {
-		a.logger.Error("http shutdown failed", "error", err)
-		return err
+		a.logger.Error("server shutdown failed", "error", err)
+	}
+	if a.redis != nil {
+		_ = a.redis.Close()
+	}
+	if a.db != nil {
+		_ = a.db.Close()
 	}
 
 	a.logger.Info("shutdown complete")
