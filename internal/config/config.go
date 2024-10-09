@@ -17,6 +17,7 @@ type Config struct {
 	JWT          JWTConfig
 	Notification NotificationConfig
 	UserAPI      UserAPIConfig
+	Kafka        KafkaConfig
 }
 
 // AppConfig holds application-level configuration
@@ -101,6 +102,10 @@ type UserAPIConfig struct {
 	Enabled bool
 }
 
+type KafkaConfig struct {
+	Brokers []string
+}
+
 // Load reads configuration from environment variables and validates it.
 func Load() (*Config, error) {
 	env := getEnv("APP_ENV", "development")
@@ -178,6 +183,10 @@ func Load() (*Config, error) {
 			Address: getEnv("USERAPI_ADDRESS", "localhost:9102"),
 			Timeout: getEnvDuration("USERAPI_TIMEOUT", 5*time.Second),
 			Enabled: getEnvBool("USERAPI_ENABLED", true),
+		},
+
+		Kafka: KafkaConfig{
+			Brokers: getEnvSlice("KAFKA_BROKERS", []string{}),
 		},
 	}
 
