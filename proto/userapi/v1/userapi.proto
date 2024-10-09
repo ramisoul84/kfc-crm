@@ -1,34 +1,26 @@
 syntax = "proto3";
 
-package userapi.v1;
+package devicepairing.v1;
 
-option go_package = "github.com/ramisoul84/kfc-crm/gen/userapi/v1;userapiv1";
+option go_package = "github.com/ramisoul84/kfc-crm/gen/devicepairing/v1;devicepairingv1";
 
-// UserAPIService receives pairing codes and device credentials from CRM.
-// CRM is the source of truth; userapi caches codes in Redis for fast
-// device-side validation.
-service UserAPIService {
-  // CachePairingCodes bulk-loads pairing codes into userapi's Redis.
-  // Called once per "Pair all devices" batch.
+service DevicePairingService {
   rpc CachePairingCodes(CachePairingCodesRequest) returns (CachePairingCodesResponse);
-
-  // CachePairingCode caches a single code (single-device re-pair).
   rpc CachePairingCode(CachePairingCodeRequest) returns (CachePairingCodeResponse);
-
-  // RevokePairingCode removes a code (e.g. manager cancelled, or it was used).
   rpc RevokePairingCode(RevokePairingCodeRequest) returns (RevokePairingCodeResponse);
+  rpc RevokeDevice(RevokeDeviceRequest) returns (RevokeDeviceResponse);
 }
 
 message CachePairingCodesRequest {
   string restaurant_id = 1;
-  int64  expires_at    = 2; // unix seconds
+  int64  expires_at    = 2;
   repeated PairingCode codes = 3;
 }
 
 message PairingCode {
   string serial_number = 1;
   string device_id     = 2;
-  string code          = 3; // plaintext; userapi hashes it before storing
+  string code          = 3;
 }
 
 message CachePairingCodesResponse {
@@ -55,6 +47,15 @@ message RevokePairingCodeRequest {
 }
 
 message RevokePairingCodeResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message RevokeDeviceRequest {
+  string device_id = 1;
+}
+
+message RevokeDeviceResponse {
   bool   success = 1;
   string message = 2;
 }

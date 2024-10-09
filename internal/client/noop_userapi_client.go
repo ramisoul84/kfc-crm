@@ -50,6 +50,13 @@ func (c *NoopUserAPIClient) RevokePairingCode(ctx context.Context, serialNumber 
 	return nil
 }
 
+func (c *NoopUserAPIClient) RevokeDevice(ctx context.Context, deviceID string) error {
+	c.logger.Warn("userapi (no-op): device not revoked",
+		"device_id", deviceID,
+	)
+	return nil
+}
+
 func (c *NoopUserAPIClient) Close() error {
 	return nil
 }
