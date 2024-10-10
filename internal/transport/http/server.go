@@ -20,12 +20,14 @@ import (
 
 // Server wraps the Fiber app with lifecycle methods.
 type Server struct {
-	app          *fiber.App
-	cfg          *config.Config
-	logger       *logger.Logger
-	authHandler  *handler.AuthHandler
-	tokenManager *jwt.TokenManager
-	tokenRepo    repository.TokenRepository
+	app           *fiber.App
+	cfg           *config.Config
+	logger        *logger.Logger
+	authHandler   *handler.AuthHandler
+	regionHandler *handler.RegionHandler
+	tokenManager  *jwt.TokenManager
+	tokenRepo     repository.TokenRepository
+	userRepo      repository.UserRepository
 }
 
 // NewServer creates a Fiber app configured from cfg.
@@ -33,8 +35,10 @@ func NewServer(
 	cfg *config.Config,
 	log *logger.Logger,
 	authHandler *handler.AuthHandler,
+	regionHandler *handler.RegionHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
+	userRepo repository.UserRepository,
 ) *Server {
 	app := fiber.New(fiber.Config{
 		AppName:               cfg.App.Name,
@@ -46,15 +50,16 @@ func NewServer(
 	})
 
 	s := &Server{
-		app:          app,
-		cfg:          cfg,
-		logger:       log,
-		authHandler:  authHandler,
-		tokenManager: tokenManager,
-		tokenRepo:    tokenRepo,
+		app:           app,
+		cfg:           cfg,
+		logger:        log,
+		authHandler:   authHandler,
+		regionHandler: regionHandler,
+		tokenManager:  tokenManager,
+		tokenRepo:     tokenRepo,
+		userRepo:      userRepo,
 	}
 
-	// Register middleware first, then routes
 	s.registerMiddleware()
 	s.registerRoutes()
 
@@ -114,9 +119,20 @@ func (s *Server) registerRoutes() {
 
 	// Logout requires a valid access token
 	auth.Post("/logout",
-		middleware.Auth(s.tokenManager, s.tokenRepo),
+		middleware.Auth(s.tokenManager, s.tokenRepo, s.userRepo),
 		s.authHandler.Logout,
 	)
+
+	// ── Protected routes ──
+	protected := api.Group("", middleware.Auth(s.tokenManager, s.tokenRepo, s.userRepo))
+
+	// Regions
+	regions := protected.Group("/regions")
+	regions.Post("/", s.regionHandler.Create)
+	regions.Get("/", s.regionHandler.List)
+	regions.Get("/:id", s.regionHandler.GetByID)
+	regions.Put("/:id", s.regionHandler.Update)
+	regions.Delete("/:id", s.regionHandler.Delete)
 }
 
 // ═══════════════════════════════════════════════════════════════════
