@@ -75,6 +75,7 @@ func New(cfg *config.Config) (*App, error) {
 	// Services
 	authService := service.NewAuthService(userRepo, tokenRepo, tokenManager, log)
 	regionService := service.NewRegionService(regionRepo, rbacService, log)
+	restaurantService := service.NewRestaurantService(restaurantRepo, rbacService, log)
 
 	// Validator
 	v := validator.New()
@@ -82,6 +83,7 @@ func New(cfg *config.Config) (*App, error) {
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService, v)
 	regionHandler := handler.NewRegionHandler(regionService, v)
+	restaurantHandler := handler.NewRestaurantHandler(restaurantService, v)
 
 	// Server
 	server := httpTransport.NewServer(
@@ -89,6 +91,7 @@ func New(cfg *config.Config) (*App, error) {
 		log,
 		authHandler,
 		regionHandler,
+		restaurantHandler,
 		tokenManager,
 		tokenRepo,
 		userRepo,
