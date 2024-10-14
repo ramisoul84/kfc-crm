@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -32,6 +33,62 @@ type restaurantRepo struct {
 func NewRestaurantRepository(db *sqlx.DB) RestaurantRepository {
 	return &restaurantRepo{db: db}
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// JOIN ROW HELPER
+// ═══════════════════════════════════════════════════════════════════
+
+// restaurantRow is a flat representation of a restaurant joined with its region.
+// Used only for scanning — converted to *domain.Restaurant after.
+type restaurantRow struct {
+	ID         uuid.UUID `db:"id"`
+	Name       string    `db:"name"`
+	Code       string    `db:"code"`
+	RegionID   uuid.UUID `db:"region_id"`
+	Address    string    `db:"address"`
+	City       string    `db:"city"`
+	PostalCode string    `db:"postal_code"`
+	Phone      string    `db:"phone"`
+	IsActive   bool      `db:"is_active"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
+
+	RegionName string `db:"region_name"`
+	RegionCode string `db:"region_code"`
+}
+
+func (row *restaurantRow) toDomain() *domain.Restaurant {
+	return &domain.Restaurant{
+		ID:         row.ID,
+		Name:       row.Name,
+		Code:       row.Code,
+		RegionID:   row.RegionID,
+		Address:    row.Address,
+		City:       row.City,
+		PostalCode: row.PostalCode,
+		Phone:      row.Phone,
+		IsActive:   row.IsActive,
+		CreatedAt:  row.CreatedAt,
+		UpdatedAt:  row.UpdatedAt,
+		Region: &domain.Region{
+			ID:   row.RegionID,
+			Name: row.RegionName,
+			Code: row.RegionCode,
+		},
+	}
+}
+
+// Shared SELECT column list for joined queries.
+const joinedRestaurantColumns = `
+	res.id, res.name, res.code, res.region_id,
+	COALESCE(res.address, '')      AS address,
+	COALESCE(res.city, '')         AS city,
+	COALESCE(res.postal_code, '')  AS postal_code,
+	COALESCE(res.phone, '')        AS phone,
+	res.is_active, res.created_at, res.updated_at,
+	reg.name AS region_name,
+	reg.code AS region_code
+`
 
 // ═══════════════════════════════════════════════════════════════════
 // CREATE
@@ -102,37 +159,21 @@ func (r *restaurantRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Res
 
 func (r *restaurantRepo) GetByIDWithRegion(ctx context.Context, id uuid.UUID) (*domain.Restaurant, error) {
 	query := `
-		SELECT
-			res.id, res.name, res.code, res.region_id,
-			COALESCE(res.address, '')      AS address,
-			COALESCE(res.city, '')         AS city,
-			COALESCE(res.postal_code, '')  AS postal_code,
-			COALESCE(res.phone, '')        AS phone,
-			res.is_active, res.created_at, res.updated_at,
-
-			reg.id       AS "region.id",
-			reg.name     AS "region.name",
-			reg.code     AS "region.code",
-			reg.timezone AS "region.timezone",
-			reg.is_active AS "region.is_active"
+		SELECT ` + joinedRestaurantColumns + `
 		FROM restaurants res
 		JOIN regions reg ON reg.id = res.region_id
 		WHERE res.id = $1 AND res.deleted_at IS NULL
 	`
 
-	restaurant := &domain.Restaurant{
-		Region: &domain.Region{},
-	}
-
-	err := r.db.GetContext(ctx, restaurant, query, id)
-	if err != nil {
+	var row restaurantRow
+	if err := r.db.GetContext(ctx, &row, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.NewNotFoundError("restaurant not found")
 		}
 		return nil, fmt.Errorf("get restaurant with region: %w", err)
 	}
 
-	return restaurant, nil
+	return row.toDomain(), nil
 }
 
 func (r *restaurantRepo) GetByCode(ctx context.Context, code string) (*domain.Restaurant, error) {
@@ -161,15 +202,7 @@ func (r *restaurantRepo) GetByCode(ctx context.Context, code string) (*domain.Re
 
 func (r *restaurantRepo) List(ctx context.Context, filter domain.RestaurantFilter) ([]*domain.Restaurant, int, error) {
 	query := `
-		SELECT
-			res.id, res.name, res.code, res.region_id,
-			COALESCE(res.address, '')      AS address,
-			COALESCE(res.city, '')         AS city,
-			COALESCE(res.postal_code, '')  AS postal_code,
-			COALESCE(res.phone, '')        AS phone,
-			res.is_active, res.created_at, res.updated_at,
-			reg.name AS "region.name",
-			reg.code AS "region.code"
+		SELECT ` + joinedRestaurantColumns + `
 		FROM restaurants res
 		JOIN regions reg ON reg.id = res.region_id
 		WHERE res.deleted_at IS NULL
@@ -207,13 +240,11 @@ func (r *restaurantRepo) List(ctx context.Context, filter domain.RestaurantFilte
 		countQuery += where
 	}
 
-	// Total
 	var total int
 	if err := r.db.GetContext(ctx, &total, countQuery, args...); err != nil {
 		return nil, 0, fmt.Errorf("count restaurants: %w", err)
 	}
 
-	// Pagination defaults
 	if filter.Limit < 1 || filter.Limit > 100 {
 		filter.Limit = 10
 	}
@@ -228,9 +259,14 @@ func (r *restaurantRepo) List(ctx context.Context, filter domain.RestaurantFilte
 	args = append(args, filter.Offset)
 	query += fmt.Sprintf(" OFFSET $%d", argCount)
 
-	restaurants := make([]*domain.Restaurant, 0)
-	if err := r.db.SelectContext(ctx, &restaurants, query, args...); err != nil {
+	rows := make([]restaurantRow, 0)
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, 0, fmt.Errorf("list restaurants: %w", err)
+	}
+
+	restaurants := make([]*domain.Restaurant, 0, len(rows))
+	for i := range rows {
+		restaurants = append(restaurants, rows[i].toDomain())
 	}
 
 	return restaurants, total, nil
