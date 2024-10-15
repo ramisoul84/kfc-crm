@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ramisoul84/kfc-crm/internal/domain"
+	"github.com/ramisoul84/kfc-crm/internal/events"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
@@ -24,6 +25,7 @@ type menuItemVariationService struct {
 	variationRepo repository.MenuItemVariationRepository
 	itemRepo      repository.MenuItemRepository
 	rbacService   RBACService
+	publisher     *events.Publisher
 	logger        *logger.Logger
 }
 
@@ -32,12 +34,14 @@ func NewMenuItemVariationService(
 	variationRepo repository.MenuItemVariationRepository,
 	itemRepo repository.MenuItemRepository,
 	rbacService RBACService,
+	publisher *events.Publisher,
 	log *logger.Logger,
 ) MenuItemVariationService {
 	return &menuItemVariationService{
 		variationRepo: variationRepo,
 		itemRepo:      itemRepo,
 		rbacService:   rbacService,
+		publisher:     publisher,
 		logger:        log,
 	}
 }
@@ -95,6 +99,8 @@ func (s *menuItemVariationService) Create(
 		)
 		return nil, err
 	}
+
+	s.publishMenuChanged(ctx, "variation.created")
 
 	log.Info("menu item variation created",
 		"variation_id", variation.ID,
@@ -189,6 +195,8 @@ func (s *menuItemVariationService) Update(
 		return nil, err
 	}
 
+	s.publishMenuChanged(ctx, "variation.updated")
+
 	log.Info("menu item variation updated", "variation_id", id, "actor_id", actor.ID)
 
 	return v.ToResponse(), nil
@@ -215,7 +223,18 @@ func (s *menuItemVariationService) Delete(
 		return err
 	}
 
+	s.publishMenuChanged(ctx, "variation.deleted")
+
 	log.Info("menu item variation deleted", "variation_id", id, "actor_id", actor.ID)
 
 	return nil
+}
+
+// Variations belong to items, which are global. A variation change
+// affects every restaurant that serves the parent item.
+func (s *menuItemVariationService) publishMenuChanged(ctx context.Context, reason string) {
+	if s.publisher == nil {
+		return
+	}
+	s.publisher.PublishMenuUpdated(ctx, "", "", reason)
 }

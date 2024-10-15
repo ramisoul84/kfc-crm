@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ramisoul84/kfc-crm/internal/domain"
+	"github.com/ramisoul84/kfc-crm/internal/events"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
@@ -24,6 +25,7 @@ type menuItemOverrideService struct {
 	overrideRepo repository.MenuItemOverrideRepository
 	itemRepo     repository.MenuItemRepository
 	rbacService  RBACService
+	publisher    *events.Publisher
 	logger       *logger.Logger
 }
 
@@ -32,12 +34,14 @@ func NewMenuItemOverrideService(
 	overrideRepo repository.MenuItemOverrideRepository,
 	itemRepo repository.MenuItemRepository,
 	rbacService RBACService,
+	publisher *events.Publisher,
 	log *logger.Logger,
 ) MenuItemOverrideService {
 	return &menuItemOverrideService{
 		overrideRepo: overrideRepo,
 		itemRepo:     itemRepo,
 		rbacService:  rbacService,
+		publisher:    publisher,
 		logger:       log,
 	}
 }
@@ -113,6 +117,8 @@ func (s *menuItemOverrideService) Set(
 		)
 		return nil, err
 	}
+
+	s.publishOverrideChanged(ctx, override.RestaurantID, "override.set")
 
 	log.Info("menu item override set",
 		"override_id", override.ID,
@@ -247,6 +253,8 @@ func (s *menuItemOverrideService) Update(
 		return nil, err
 	}
 
+	s.publishOverrideChanged(ctx, override.RestaurantID, "override.updated")
+
 	log.Info("menu item override updated", "override_id", id, "actor_id", actor.ID)
 
 	return override.ToResponse(), nil
@@ -291,7 +299,22 @@ func (s *menuItemOverrideService) Delete(
 		return err
 	}
 
+	s.publishOverrideChanged(ctx, override.RestaurantID, "override.deleted")
+
 	log.Info("menu item override deleted", "override_id", id, "actor_id", actor.ID)
 
 	return nil
+}
+
+// Overrides are per-restaurant, so only that restaurant's cache needs
+// to be invalidated.
+func (s *menuItemOverrideService) publishOverrideChanged(
+	ctx context.Context,
+	restaurantID uuid.UUID,
+	reason string,
+) {
+	if s.publisher == nil {
+		return
+	}
+	s.publisher.PublishMenuUpdated(ctx, restaurantID.String(), "", reason)
 }

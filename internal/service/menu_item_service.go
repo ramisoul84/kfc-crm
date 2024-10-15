@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ramisoul84/kfc-crm/internal/domain"
+	"github.com/ramisoul84/kfc-crm/internal/events"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
@@ -24,6 +25,7 @@ type menuItemService struct {
 	itemRepo     repository.MenuItemRepository
 	categoryRepo repository.MenuCategoryRepository
 	rbacService  RBACService
+	publisher    *events.Publisher
 	logger       *logger.Logger
 }
 
@@ -32,12 +34,14 @@ func NewMenuItemService(
 	itemRepo repository.MenuItemRepository,
 	categoryRepo repository.MenuCategoryRepository,
 	rbacService RBACService,
+	publisher *events.Publisher,
 	log *logger.Logger,
 ) MenuItemService {
 	return &menuItemService{
 		itemRepo:     itemRepo,
 		categoryRepo: categoryRepo,
 		rbacService:  rbacService,
+		publisher:    publisher,
 		logger:       log,
 	}
 }
@@ -100,6 +104,8 @@ func (s *menuItemService) Create(
 		)
 		return nil, err
 	}
+
+	s.publishMenuChanged(ctx, item.CategoryID, "item.created")
 
 	log.Info("menu item created",
 		"item_id", item.ID,
@@ -206,6 +212,8 @@ func (s *menuItemService) Update(
 		return nil, err
 	}
 
+	s.publishMenuChanged(ctx, item.CategoryID, "item.updated")
+
 	log.Info("menu item updated", "item_id", id, "actor_id", actor.ID)
 
 	return item.ToResponse(), nil
@@ -222,17 +230,49 @@ func (s *menuItemService) Delete(
 ) error {
 	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
 
+	// 1. Permission
 	if err := s.rbacService.CheckPermission(actor, domain.PermMenuItemDelete); err != nil {
 		log.Warn("delete menu item denied", "actor_id", actor.ID, "error", err)
 		return err
 	}
 
+	// 2. Load the item first so we have it for the event payload
+	//    (and so we can return a clean 404 if it doesn't exist).
+	item, err := s.itemRepo.GetByID(ctx, id)
+	if err != nil {
+		log.Error("delete menu item: load", "item_id", id, "error", err)
+		return err
+	}
+
+	// 3. Delete
 	if err := s.itemRepo.Delete(ctx, id); err != nil {
 		log.Error("delete menu item failed", "item_id", id, "error", err)
 		return err
 	}
 
-	log.Info("menu item deleted", "item_id", id, "actor_id", actor.ID)
+	// 4. Publish the event — best-effort, doesn't fail the operation.
+	s.publishMenuChanged(ctx, item.CategoryID, "item.deleted")
+
+	log.Info("menu item deleted",
+		"item_id", id,
+		"product_code", item.ProductCode,
+		"actor_id", actor.ID,
+	)
 
 	return nil
+}
+
+// publishMenuChanged resolves the restaurant scope and publishes an event.
+// Since menu items are global (not per-restaurant), a change to any item
+// affects ALL restaurants. So we publish one event per restaurant, or a
+// single "all restaurants" event that userapi fans out.
+//
+// For now: publish a single event with restaurant_id="" meaning "all".
+// userapi handles empty restaurant_id by clearing all menu keys.
+func (s *menuItemService) publishMenuChanged(ctx context.Context, categoryID uuid.UUID, reason string) {
+	if s.publisher == nil {
+		return
+	}
+	// Empty restaurant_id = "all restaurants affected".
+	s.publisher.PublishMenuUpdated(ctx, "", "", reason)
 }

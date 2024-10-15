@@ -7,6 +7,7 @@ import (
 
 	"github.com/ramisoul84/kfc-crm/internal/client"
 	"github.com/ramisoul84/kfc-crm/internal/config"
+	"github.com/ramisoul84/kfc-crm/internal/events"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/internal/service"
 	grpcTransport "github.com/ramisoul84/kfc-crm/internal/transport/grpc"
@@ -14,6 +15,7 @@ import (
 	"github.com/ramisoul84/kfc-crm/internal/transport/http/handler"
 	"github.com/ramisoul84/kfc-crm/pkg/database"
 	"github.com/ramisoul84/kfc-crm/pkg/jwt"
+	"github.com/ramisoul84/kfc-crm/pkg/kafka"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
 	"github.com/ramisoul84/kfc-crm/pkg/validator"
 )
@@ -27,6 +29,7 @@ type App struct {
 	notificationClient client.NotificationClient
 	server             *httpTransport.Server
 	grpcServer         *grpcTransport.Transport
+	kafkaProducer      *kafka.Producer
 }
 
 // New creates and wires the application.
@@ -44,6 +47,18 @@ func New(cfg *config.Config) (*App, error) {
 		"version", cfg.App.Version,
 		"environment", cfg.App.Environment,
 	)
+
+	// Kafka
+	var kafkaProducer *kafka.Producer
+	var eventsPublisher *events.Publisher
+
+	if len(cfg.Kafka.Brokers) > 0 {
+		kafkaProducer = kafka.NewProducer(cfg.Kafka.Brokers, log)
+		eventsPublisher = events.NewPublisher(kafkaProducer, log)
+		log.Info("kafka producer initialized", "brokers", cfg.Kafka.Brokers)
+	} else {
+		log.Warn("kafka disabled; menu cache invalidation will not work")
+	}
 
 	// Postgres
 	db, err := database.NewPostgres(&cfg.DB, cfg.DSN())
@@ -109,21 +124,23 @@ func New(cfg *config.Config) (*App, error) {
 	restaurantService := service.NewRestaurantService(restaurantRepo, rbacService, log)
 	userService := service.NewUserService(userRepo, rbacService, notificationClient, log)
 	deviceService := service.NewDeviceService(deviceRepo, restaurantRepo, rbacService, notificationClient, userAPIClient, log)
-	menuCategoryService := service.NewMenuCategoryService(menuCategoryRepo, rbacService, log)
-	menuItemService := service.NewMenuItemService(menuItemRepo, menuCategoryRepo, rbacService, log)
+	menuCategoryService := service.NewMenuCategoryService(menuCategoryRepo, rbacService, eventsPublisher, log)
+	menuItemService := service.NewMenuItemService(menuItemRepo, menuCategoryRepo, rbacService, eventsPublisher, log)
 	menuItemVariationService := service.NewMenuItemVariationService(
 		menuVariationRepo,
 		menuItemRepo,
 		rbacService,
+		eventsPublisher,
 		log,
 	)
 	menuItemOverrideService := service.NewMenuItemOverrideService(
 		menuOverrideRepo,
 		menuItemRepo,
 		rbacService,
+		eventsPublisher,
 		log,
 	)
-	menuPromotionService := service.NewMenuPromotionService(menuPromotionRepo, rbacService, log)
+	menuPromotionService := service.NewMenuPromotionService(menuPromotionRepo, rbacService, eventsPublisher, log)
 	effectiveMenuService := service.NewEffectiveMenuService(
 		effectiveMenuRepo,
 		restaurantRepo,
@@ -135,7 +152,7 @@ func New(cfg *config.Config) (*App, error) {
 	v := validator.New()
 
 	// Handlers
-	authHandler := handler.NewAuthHandler(authService, v)
+	authHandler := handler.NewAuthHandler(authService, v, cfg.IsProduction())
 	regionHandler := handler.NewRegionHandler(regionService, v)
 	restaurantHandler := handler.NewRestaurantHandler(restaurantService, v)
 	userHandler := handler.NewUserHandler(userService, v)
@@ -222,6 +239,13 @@ func (a *App) Shutdown(ctx context.Context) error {
 	if err := a.grpcServer.Shutdown(ctx); err != nil {
 		a.logger.Error("grpc shutdown failed", "error", err)
 		errs = append(errs, fmt.Errorf("grpc shutdown: %w", err))
+	}
+
+	if a.kafkaProducer != nil {
+		if err := a.kafkaProducer.Close(); err != nil {
+			a.logger.Error("kafka producer close failed", "error", err)
+			errs = append(errs, err)
+		}
 	}
 
 	if a.notificationClient != nil {

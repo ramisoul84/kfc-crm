@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ramisoul84/kfc-crm/internal/domain"
+	"github.com/ramisoul84/kfc-crm/internal/events"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
@@ -23,6 +24,7 @@ type MenuCategoryService interface {
 type menuCategoryService struct {
 	categoryRepo repository.MenuCategoryRepository
 	rbacService  RBACService
+	publisher    *events.Publisher
 	logger       *logger.Logger
 }
 
@@ -30,11 +32,13 @@ type menuCategoryService struct {
 func NewMenuCategoryService(
 	categoryRepo repository.MenuCategoryRepository,
 	rbacService RBACService,
+	publisher *events.Publisher,
 	log *logger.Logger,
 ) MenuCategoryService {
 	return &menuCategoryService{
 		categoryRepo: categoryRepo,
 		rbacService:  rbacService,
+		publisher:    publisher,
 		logger:       log,
 	}
 }
@@ -86,6 +90,8 @@ func (s *menuCategoryService) Create(
 		)
 		return nil, err
 	}
+
+	s.publishMenuChanged(ctx, "category.created")
 
 	log.Info("menu category created",
 		"category_id", category.ID,
@@ -190,6 +196,8 @@ func (s *menuCategoryService) Update(
 		return nil, err
 	}
 
+	s.publishMenuChanged(ctx, "category.updated")
+
 	log.Info("menu category updated", "category_id", id, "actor_id", actor.ID)
 
 	return category.ToResponse(), nil
@@ -218,7 +226,18 @@ func (s *menuCategoryService) Delete(
 		return err
 	}
 
+	s.publishMenuChanged(ctx, "category.deleted")
+
 	log.Info("menu category deleted", "category_id", id, "actor_id", actor.ID)
 
 	return nil
+}
+
+// publishMenuChanged notifies userapi that the master menu changed.
+// Categories are global, so this affects every restaurant.
+func (s *menuCategoryService) publishMenuChanged(ctx context.Context, reason string) {
+	if s.publisher == nil {
+		return
+	}
+	s.publisher.PublishMenuUpdated(ctx, "", "", reason)
 }

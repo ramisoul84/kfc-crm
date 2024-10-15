@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ramisoul84/kfc-crm/internal/domain"
+	"github.com/ramisoul84/kfc-crm/internal/events"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
@@ -23,6 +24,7 @@ type MenuPromotionService interface {
 type menuPromotionService struct {
 	promotionRepo repository.MenuPromotionRepository
 	rbacService   RBACService
+	publisher     *events.Publisher
 	logger        *logger.Logger
 }
 
@@ -30,11 +32,13 @@ type menuPromotionService struct {
 func NewMenuPromotionService(
 	promotionRepo repository.MenuPromotionRepository,
 	rbacService RBACService,
+	publisher *events.Publisher,
 	log *logger.Logger,
 ) MenuPromotionService {
 	return &menuPromotionService{
 		promotionRepo: promotionRepo,
 		rbacService:   rbacService,
+		publisher:     publisher,
 		logger:        log,
 	}
 }
@@ -108,6 +112,8 @@ func (s *menuPromotionService) Create(
 		log.Error("create promotion failed", "error", err)
 		return nil, err
 	}
+
+	s.publishPromotionChanged(ctx, promotion, "promotion.created")
 
 	log.Info("promotion created",
 		"promotion_id", promotion.ID,
@@ -236,6 +242,7 @@ func (s *menuPromotionService) Update(
 		log.Error("update promotion failed", "promotion_id", id, "error", err)
 		return nil, err
 	}
+	s.publishPromotionChanged(ctx, promotion, "promotion.updated")
 
 	log.Info("promotion updated", "promotion_id", id, "actor_id", actor.ID)
 
@@ -276,6 +283,8 @@ func (s *menuPromotionService) Delete(
 		log.Error("delete promotion failed", "promotion_id", id, "error", err)
 		return err
 	}
+
+	s.publishPromotionChanged(ctx, promotion, "promotion.deleted")
 
 	log.Info("promotion deleted", "promotion_id", id, "actor_id", actor.ID)
 
@@ -343,5 +352,35 @@ func (s *menuPromotionService) checkPromotionScope(
 		return nil
 	default:
 		return domain.NewAuthorizationError("insufficient permissions to manage promotions")
+	}
+}
+
+// Promotions are scoped. Global and region-scoped promotions affect
+// many restaurants, so we invalidate everything. Restaurant-scoped
+// promotions affect only their own restaurant.
+//
+// Region-level granularity is possible but requires userapi to know
+// the region-to-restaurant mapping. That's an optimization for later;
+// clearing all is always correct.
+func (s *menuPromotionService) publishPromotionChanged(
+	ctx context.Context,
+	p *domain.Promotion,
+	reason string,
+) {
+	if s.publisher == nil {
+		return
+	}
+
+	switch p.Scope {
+	case domain.PromotionScopeRestaurant:
+		if p.RestaurantID != nil {
+			s.publisher.PublishMenuUpdated(ctx, p.RestaurantID.String(), "", reason)
+			return
+		}
+		// Fall through to global if no restaurant is set (shouldn't
+		// happen because of validation, but be defensive).
+		fallthrough
+	default:
+		s.publisher.PublishMenuUpdated(ctx, "", "", reason)
 	}
 }
