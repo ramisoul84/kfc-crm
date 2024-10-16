@@ -26,6 +26,7 @@ type Server struct {
 	authHandler       *handler.AuthHandler
 	regionHandler     *handler.RegionHandler
 	restaurantHandler *handler.RestaurantHandler
+	userHandler       *handler.UserHandler
 	tokenManager      *jwt.TokenManager
 	tokenRepo         repository.TokenRepository
 	userRepo          repository.UserRepository
@@ -38,6 +39,7 @@ func NewServer(
 	authHandler *handler.AuthHandler,
 	regionHandler *handler.RegionHandler,
 	restaurantHandler *handler.RestaurantHandler,
+	userHandler *handler.UserHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -58,6 +60,7 @@ func NewServer(
 		authHandler:       authHandler,
 		regionHandler:     regionHandler,
 		restaurantHandler: restaurantHandler,
+		userHandler:       userHandler,
 		tokenManager:      tokenManager,
 		tokenRepo:         tokenRepo,
 		userRepo:          userRepo,
@@ -144,6 +147,19 @@ func (s *Server) registerRoutes() {
 	restaurants.Get("/:id", s.restaurantHandler.GetByID)
 	restaurants.Put("/:id", s.restaurantHandler.Update)
 	restaurants.Delete("/:id", s.restaurantHandler.Delete)
+
+	// Self-service FIRST so "me" doesn't match ":id"
+	me := protected.Group("/users/me")
+	me.Post("/setup", s.userHandler.Setup)
+	me.Put("/password", s.userHandler.ChangePassword)
+
+	// Then dynamic routes
+	users := protected.Group("/users")
+	users.Post("/", s.userHandler.Create)
+	users.Get("/", s.userHandler.List)
+	users.Get("/:id", s.userHandler.GetByID)
+	users.Put("/:id", s.userHandler.Update)
+	users.Delete("/:id", s.userHandler.Delete)
 }
 
 // ═══════════════════════════════════════════════════════════════════
