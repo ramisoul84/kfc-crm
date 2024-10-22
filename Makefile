@@ -1,4 +1,4 @@
-.PHONY: help run build
+.PHONY: help run build proto-gen
 
 # Application
 APP_NAME=kfc-crm
@@ -20,4 +20,14 @@ build:
 	@mkdir -p bin
 	@go build -o bin/$(BINARY_NAME) cmd/crm/main.go
 	@echo "built bin/crm"
-	
+
+proto-gen:
+	@echo "Generating protobuf files..."
+	@mkdir -p gen
+	protoc \
+		--go_out=. \
+		--go_opt=module=github.com/ramisoul84/kfc-crm \
+		--go-grpc_out=. \
+		--go-grpc_opt=module=github.com/ramisoul84/kfc-crm \
+		proto/notification/v1/notification.proto
+	@echo "✅ Proto files generated"

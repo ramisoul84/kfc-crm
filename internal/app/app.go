@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ramisoul84/kfc-crm/internal/client"
 	"github.com/ramisoul84/kfc-crm/internal/config"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/internal/service"
@@ -17,11 +18,12 @@ import (
 
 // App wires together all application components.
 type App struct {
-	config *config.Config
-	logger *logger.Logger
-	db     *database.Postgres
-	redis  *database.Redis
-	server *httpTransport.Server
+	config             *config.Config
+	logger             *logger.Logger
+	db                 *database.Postgres
+	redis              *database.Redis
+	notificationClient client.NotificationClient
+	server             *httpTransport.Server
 }
 
 // New creates and wires the application.
@@ -62,6 +64,20 @@ func New(cfg *config.Config) (*App, error) {
 		cfg.JWT.RefreshDuration,
 	)
 
+	// Notification client (optional)
+	var notificationClient client.NotificationClient
+	if cfg.Notification.Enabled {
+		nc, err := client.NewNotificationClient(&cfg.Notification)
+		if err != nil {
+			log.Warn("notification client disabled: %v", err)
+		} else {
+			notificationClient = nc
+			log.Info("notification client initialized", "address", cfg.Notification.Address)
+		}
+	} else {
+		log.Info("notification client disabled by config")
+	}
+
 	// Repositories
 	userRepo := repository.NewUserRepository(db.DB)
 	tokenRepo := repository.NewTokenRepository(redisClient.Client)
@@ -76,7 +92,7 @@ func New(cfg *config.Config) (*App, error) {
 	authService := service.NewAuthService(userRepo, tokenRepo, tokenManager, log)
 	regionService := service.NewRegionService(regionRepo, rbacService, log)
 	restaurantService := service.NewRestaurantService(restaurantRepo, rbacService, log)
-	userService := service.NewUserService(userRepo, rbacService, log)
+	userService := service.NewUserService(userRepo, rbacService, notificationClient, log)
 	deviceService := service.NewDeviceService(deviceRepo, rbacService, log)
 
 	// Validator
@@ -104,11 +120,12 @@ func New(cfg *config.Config) (*App, error) {
 	)
 
 	return &App{
-		config: cfg,
-		logger: log,
-		db:     db,
-		redis:  redisClient,
-		server: server,
+		config:             cfg,
+		logger:             log,
+		db:                 db,
+		redis:              redisClient,
+		notificationClient: notificationClient,
+		server:             server,
 	}, nil
 }
 
@@ -129,6 +146,10 @@ func (a *App) Shutdown(ctx context.Context) error {
 	}
 	if a.db != nil {
 		_ = a.db.Close()
+	}
+
+	if a.notificationClient != nil {
+		_ = a.notificationClient.Close()
 	}
 
 	a.logger.Info("shutdown complete")

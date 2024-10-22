@@ -8,12 +8,13 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	App    AppConfig
-	HTTP   HTTPConfig
-	Logger LoggerConfig
-	DB     DatabaseConfig
-	Redis  RedisConfig
-	JWT    JWTConfig
+	App          AppConfig
+	HTTP         HTTPConfig
+	Logger       LoggerConfig
+	DB           DatabaseConfig
+	Redis        RedisConfig
+	JWT          JWTConfig
+	Notification NotificationConfig
 }
 
 // AppConfig holds application-level configuration
@@ -78,6 +79,13 @@ type JWTConfig struct {
 	RefreshDuration time.Duration
 }
 
+// NotificationConfig holds notification service settings.
+type NotificationConfig struct {
+	Address string
+	Timeout time.Duration
+	Enabled bool
+}
+
 // Load reads configuration from environment variables and validates it.
 func Load() (*Config, error) {
 	env := getEnv("APP_ENV", "development")
@@ -138,6 +146,12 @@ func Load() (*Config, error) {
 			Secret:          getEnv("JWT_SECRET", "dev-secret-change-in-production"),
 			AccessDuration:  getEnvDuration("JWT_ACCESS_DURATION", 15*time.Minute),
 			RefreshDuration: getEnvDuration("JWT_REFRESH_DURATION", 7*24*time.Hour),
+		},
+
+		Notification: NotificationConfig{
+			Address: getEnv("NOTIFICATION_ADDRESS", "localhost:9094"),
+			Timeout: getEnvDuration("NOTIFICATION_TIMEOUT", 5*time.Second),
+			Enabled: getEnvBool("NOTIFICATION_ENABLED", true),
 		},
 	}
 

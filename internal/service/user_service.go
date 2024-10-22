@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/ramisoul84/kfc-crm/internal/client"
 	"github.com/ramisoul84/kfc-crm/internal/domain"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
@@ -24,21 +26,24 @@ type UserService interface {
 }
 
 type userService struct {
-	userRepo    repository.UserRepository
-	rbacService RBACService
-	logger      *logger.Logger
+	userRepo           repository.UserRepository
+	rbacService        RBACService
+	notificationClient client.NotificationClient
+	logger             *logger.Logger
 }
 
 // NewUserService creates a UserService.
 func NewUserService(
 	userRepo repository.UserRepository,
 	rbacService RBACService,
+	notificationClient client.NotificationClient,
 	log *logger.Logger,
 ) UserService {
 	return &userService{
-		userRepo:    userRepo,
-		rbacService: rbacService,
-		logger:      log,
+		userRepo:           userRepo,
+		rbacService:        rbacService,
+		notificationClient: notificationClient,
+		logger:             log,
 	}
 }
 
@@ -124,7 +129,8 @@ func (s *userService) CreateUser(
 		"actor_id", actor.ID,
 	)
 
-	// TODO: send welcome email with initialPassword via notification service
+	// 6. Send welcome email asynchronously
+	go s.sendWelcomeEmail(user, initialPassword)
 
 	return user.ToResponse(), nil
 }
@@ -410,4 +416,42 @@ func (s *userService) ChangePassword(
 	log.Info("password changed", "user_id", userID)
 
 	return nil
+}
+
+// sendWelcomeEmail sends the welcome email with the initial password.
+// Runs in a goroutine so it never blocks the HTTP response.
+func (s *userService) sendWelcomeEmail(user *domain.User, initialPassword string) {
+	if s.notificationClient == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	log := s.logger
+
+	req := &client.WelcomeEmail{
+		To:              user.Email,
+		Email:           user.Email,
+		RoleName:        string(user.Role),
+		InitialPassword: initialPassword,
+	}
+
+	if user.RestaurantID != nil {
+		req.RestaurantID = user.RestaurantID.String()
+	}
+	if user.RegionID != nil {
+		req.RegionID = user.RegionID.String()
+	}
+
+	if err := s.notificationClient.SendWelcomeEmail(ctx, req); err != nil {
+		log.Error("send welcome email failed",
+			"user_id", user.ID,
+			"email", user.Email,
+			"error", err,
+		)
+		return
+	}
+
+	log.Info("welcome email sent", "user_id", user.ID, "email", user.Email)
 }
