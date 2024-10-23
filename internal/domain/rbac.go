@@ -91,6 +91,11 @@ const (
 	PermDeviceRead   Permission = "device.read"
 	PermDeviceUpdate Permission = "device.update"
 	PermDeviceDelete Permission = "device.delete"
+
+	// Menu permissions
+	PermMenuRead   Permission = "menu.read"
+	PermMenuWrite  Permission = "menu.write"
+	PermMenuDelete Permission = "menu.delete"
 )
 
 // ═══════════════════════════════════════════════════════════════════
@@ -104,25 +109,30 @@ var RolePermissions = map[Role][]Permission{
 		PermRestaurantCreate, PermRestaurantRead, PermRestaurantUpdate, PermRestaurantDelete,
 		PermUserCreate, PermUserRead, PermUserUpdate, PermUserDelete,
 		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDeviceDelete,
+		PermMenuRead, PermMenuWrite, PermMenuDelete,
 	},
 	RoleRegionalManager: {
 		PermRegionRead,
 		PermRestaurantCreate, PermRestaurantRead, PermRestaurantUpdate, PermRestaurantDelete,
 		PermUserCreate, PermUserRead, PermUserUpdate, PermUserDelete,
 		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDeviceDelete,
+		PermMenuRead, PermMenuWrite, PermMenuDelete,
 	},
 	RoleRestaurantManager: {
 		PermRestaurantRead,
 		PermUserCreate, PermUserRead, PermUserUpdate,
 		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate,
+		PermMenuRead, PermMenuWrite,
 	},
 	RoleShiftManager: {
 		PermRestaurantRead,
 		PermUserRead,
 		PermDeviceRead,
+		PermMenuRead,
 	},
 	RoleCashier: {
 		PermRestaurantRead,
+		PermMenuRead,
 	},
 }
 
