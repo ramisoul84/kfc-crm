@@ -14,6 +14,7 @@ type MenuItem struct {
 	Name        string     `db:"name"         json:"name"`
 	Description string     `db:"description"  json:"description,omitempty"`
 	ImageURL    string     `db:"image_url"    json:"image_url,omitempty"`
+	ImageKey    string     `db:"image_key"            json:"-"`
 	BasePrice   float64    `db:"base_price"   json:"base_price"`
 	SortOrder   int        `db:"sort_order"   json:"sort_order"`
 	IsActive    bool       `db:"is_active"    json:"is_active"`

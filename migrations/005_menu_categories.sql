@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS menu_categories (
     code        VARCHAR(50)  UNIQUE NOT NULL,
     description TEXT,
     image_url   TEXT,
+    image_key   TEXT,
     sort_order  INT DEFAULT 0,
     is_active   BOOLEAN DEFAULT true,
     created_at  TIMESTAMPTZ DEFAULT NOW(),

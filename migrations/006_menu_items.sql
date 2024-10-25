@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
     name         VARCHAR(200) NOT NULL,
     description  TEXT,
     image_url    TEXT,
+    image_key    TEXT,
     base_price   DECIMAL(10,2) NOT NULL,
     sort_order   INT DEFAULT 0,
     is_active    BOOLEAN DEFAULT true,

@@ -13,6 +13,7 @@ type MenuCategory struct {
 	Code        string     `db:"code"        json:"code"`
 	Description string     `db:"description" json:"description,omitempty"`
 	ImageURL    string     `db:"image_url"   json:"image_url,omitempty"`
+	ImageKey    string     `db:"image_key"           json:"-"`
 	SortOrder   int        `db:"sort_order"  json:"sort_order"`
 	IsActive    bool       `db:"is_active"   json:"is_active"`
 	CreatedAt   time.Time  `db:"created_at"  json:"created_at"`
@@ -33,7 +34,6 @@ type CreateMenuCategoryRequest struct {
 type UpdateMenuCategoryRequest struct {
 	Name        string `json:"name"        validate:"required,min=2,max=100"`
 	Description string `json:"description" validate:"omitempty,max=500"`
-	ImageURL    string `json:"image_url"   validate:"omitempty,url"`
 	SortOrder   int    `json:"sort_order"`
 	IsActive    *bool  `json:"is_active,omitempty"`
 }
@@ -52,7 +52,7 @@ type MenuCategoryResponse struct {
 	Name        string    `json:"name"`
 	Code        string    `json:"code"`
 	Description string    `json:"description,omitempty"`
-	ImageURL    string    `json:"image_url,omitempty"`
+	ImageURL    string    `json:"image_url"`
 	SortOrder   int       `json:"sort_order"`
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
