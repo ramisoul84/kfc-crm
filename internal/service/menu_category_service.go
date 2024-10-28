@@ -57,7 +57,7 @@ func (s *menuCategoryService) Create(
 	)
 
 	// 1. Permission
-	if err := s.rbacService.CheckPermission(actor, domain.PermMenuWrite); err != nil {
+	if err := s.rbacService.CheckPermission(actor, domain.PermMenuCategoryWrite); err != nil {
 		log.Warn("create menu category denied",
 			"actor_id", actor.ID,
 			"role", actor.Role,
@@ -108,7 +108,7 @@ func (s *menuCategoryService) GetByID(
 	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
 
 	// Permission
-	if err := s.rbacService.CheckPermission(actor, domain.PermMenuRead); err != nil {
+	if err := s.rbacService.CheckPermission(actor, domain.PermMenuCategoryRead); err != nil {
 		log.Warn("get menu category denied", "actor_id", actor.ID, "error", err)
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (s *menuCategoryService) List(
 	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
 
 	// Permission
-	if err := s.rbacService.CheckPermission(actor, domain.PermMenuRead); err != nil {
+	if err := s.rbacService.CheckPermission(actor, domain.PermMenuCategoryRead); err != nil {
 		log.Warn("list menu categories denied", "actor_id", actor.ID, "error", err)
 		return nil, 0, err
 	}
@@ -164,7 +164,7 @@ func (s *menuCategoryService) Update(
 	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
 
 	// 1. Permission
-	if err := s.rbacService.CheckPermission(actor, domain.PermMenuWrite); err != nil {
+	if err := s.rbacService.CheckPermission(actor, domain.PermMenuCategoryWrite); err != nil {
 		log.Warn("update menu category denied", "actor_id", actor.ID, "error", err)
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func (s *menuCategoryService) Delete(
 	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
 
 	// 1. Permission
-	if err := s.rbacService.CheckPermission(actor, domain.PermMenuDelete); err != nil {
+	if err := s.rbacService.CheckPermission(actor, domain.PermMenuCategoryDelete); err != nil {
 		log.Warn("delete menu category denied", "actor_id", actor.ID, "error", err)
 		return err
 	}
