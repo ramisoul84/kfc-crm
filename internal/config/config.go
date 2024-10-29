@@ -18,6 +18,7 @@ type Config struct {
 	Notification NotificationConfig
 	UserAPI      UserAPIConfig
 	Kafka        KafkaConfig
+	MinIO        MinIOConfig
 }
 
 // AppConfig holds application-level configuration
@@ -106,6 +107,17 @@ type KafkaConfig struct {
 	Brokers []string
 }
 
+// MinIOConfig holds MinIO / S3-compatible object storage settings.
+type MinIOConfig struct {
+	Endpoint       string // host:port, no scheme
+	AccessKey      string
+	SecretKey      string
+	Bucket         string
+	UseSSL         bool
+	PublicURL      string // public base URL for objects, e.g. https://cdn.kfc.ru
+	MaxUploadBytes int64  // 0 = no limit
+}
+
 // Load reads configuration from environment variables and validates it.
 func Load() (*Config, error) {
 	env := getEnv("APP_ENV", "development")
@@ -188,6 +200,16 @@ func Load() (*Config, error) {
 		Kafka: KafkaConfig{
 			Brokers: getEnvSlice("KAFKA_BROKERS", []string{}),
 		},
+
+		MinIO: MinIOConfig{
+			Endpoint:       getEnv("MINIO_ENDPOINT", "localhost:9000"),
+			AccessKey:      getEnv("MINIO_ACCESS_KEY", "minioadmin"),
+			SecretKey:      getEnv("MINIO_SECRET_KEY", "minioadmin"),
+			Bucket:         getEnv("MINIO_BUCKET", "kfc-media"),
+			UseSSL:         getEnvBool("MINIO_USE_SSL", false),
+			PublicURL:      getEnv("MINIO_PUBLIC_URL", "http://localhost:9000/kfc-media"),
+			MaxUploadBytes: int64(getEnvInt("MINIO_MAX_UPLOAD_BYTES", 5*1024*1024)), // 5 MB
+		},
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -250,6 +272,16 @@ func (c *Config) Validate() error {
 	// Validate Redis pool
 	if c.Redis.PoolSize < c.Redis.MinIdleConns {
 		errors = append(errors, "REDIS_POOL_SIZE must be greater than or equal to REDIS_MIN_IDLE_CONNS")
+	}
+
+	if c.MinIO.Endpoint == "" {
+		errors = append(errors, "MINIO_ENDPOINT must not be empty")
+	}
+	if c.MinIO.Bucket == "" {
+		errors = append(errors, "MINIO_BUCKET must not be empty")
+	}
+	if c.App.Environment == "production" && c.MinIO.SecretKey == "minioadmin" {
+		errors = append(errors, "MINIO_SECRET_KEY must be changed in production")
 	}
 
 	// Production security checks
