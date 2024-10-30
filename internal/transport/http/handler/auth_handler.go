@@ -22,15 +22,17 @@ const (
 
 // AuthHandler handles authentication endpoints.
 type AuthHandler struct {
-	authService service.AuthService
-	validator   *validator.Validator
+	authService  service.AuthService
+	validator    *validator.Validator
+	isProduction bool
 }
 
 // NewAuthHandler creates an AuthHandler.
-func NewAuthHandler(authService service.AuthService, v *validator.Validator) *AuthHandler {
+func NewAuthHandler(authService service.AuthService, v *validator.Validator, isProduction bool) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
-		validator:   v,
+		authService:  authService,
+		validator:    v,
+		isProduction: isProduction,
 	}
 }
 
@@ -119,13 +121,18 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 // ═══════════════════════════════════════════════════════════════════
 
 func (h *AuthHandler) setRefreshCookie(c *fiber.Ctx, token string) {
+	sameSite := "Strict"
+	if !h.isProduction {
+		sameSite = "None"
+	}
+
 	c.Cookie(&fiber.Cookie{
 		Name:     refreshTokenCookieName,
 		Value:    token,
 		Path:     refreshTokenCookiePath,
 		HTTPOnly: true,
-		Secure:   true,
-		SameSite: "Strict",
+		Secure:   h.isProduction,
+		SameSite: sameSite,
 		Expires:  time.Now().Add(refreshTokenTTL),
 		MaxAge:   int(refreshTokenTTL.Seconds()),
 	})
@@ -137,7 +144,7 @@ func (h *AuthHandler) clearRefreshCookie(c *fiber.Ctx) {
 		Value:    "",
 		Path:     refreshTokenCookiePath,
 		HTTPOnly: true,
-		Secure:   true,
+		Secure:   h.isProduction,
 		SameSite: "Strict",
 		Expires:  time.Now().Add(-1 * time.Hour),
 		MaxAge:   -1,

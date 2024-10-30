@@ -10,6 +10,7 @@ import (
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
+	"github.com/ramisoul84/kfc-crm/pkg/storage"
 )
 
 // MenuItemService handles menu item business logic.
@@ -19,11 +20,14 @@ type MenuItemService interface {
 	List(ctx context.Context, actor *domain.User, filter domain.MenuItemFilter) ([]*domain.MenuItemResponse, int, error)
 	Update(ctx context.Context, actor *domain.User, id uuid.UUID, req *domain.UpdateMenuItemRequest) (*domain.MenuItemResponse, error)
 	Delete(ctx context.Context, actor *domain.User, id uuid.UUID) error
+	SetPhoto(ctx context.Context, actor *domain.User, id uuid.UUID, data []byte, mimeType string) (*domain.MenuItemResponse, error)
+	RemovePhoto(ctx context.Context, actor *domain.User, id uuid.UUID) (*domain.MenuItemResponse, error)
 }
 
 type menuItemService struct {
 	itemRepo     repository.MenuItemRepository
 	categoryRepo repository.MenuCategoryRepository
+	storage      storage.PhotoStorage
 	rbacService  RBACService
 	publisher    *events.Publisher
 	logger       *logger.Logger
@@ -33,6 +37,7 @@ type menuItemService struct {
 func NewMenuItemService(
 	itemRepo repository.MenuItemRepository,
 	categoryRepo repository.MenuCategoryRepository,
+	storage storage.PhotoStorage,
 	rbacService RBACService,
 	publisher *events.Publisher,
 	log *logger.Logger,
@@ -40,6 +45,7 @@ func NewMenuItemService(
 	return &menuItemService{
 		itemRepo:     itemRepo,
 		categoryRepo: categoryRepo,
+		storage:      storage,
 		rbacService:  rbacService,
 		publisher:    publisher,
 		logger:       log,
@@ -275,4 +281,81 @@ func (s *menuItemService) publishMenuChanged(ctx context.Context, categoryID uui
 	}
 	// Empty restaurant_id = "all restaurants affected".
 	s.publisher.PublishMenuUpdated(ctx, "", "", reason)
+}
+
+func (s *menuItemService) SetPhoto(
+	ctx context.Context,
+	actor *domain.User,
+	id uuid.UUID,
+	data []byte,
+	mimeType string,
+) (*domain.MenuItemResponse, error) {
+	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
+
+	if err := s.rbacService.CheckPermission(actor, domain.PermMenuItemWrite); err != nil {
+		return nil, err
+	}
+
+	item, err := s.itemRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Upload first — if it fails, we don't touch the DB.
+	url, key, err := s.storage.Upload(ctx, id.String(), data, mimeType)
+	if err != nil {
+		log.Error("menu item photo upload failed", "item_id", id, "error", err)
+		return nil, domain.NewInternalError(err)
+	}
+
+	// Delete the old photo if one existed.
+	if item.ImageKey != "" {
+		if err := s.storage.Delete(ctx, item.ImageKey); err != nil {
+			// Non-fatal: orphaned object, log and continue.
+			log.Warn("failed to delete old item photo", "key", item.ImageKey, "error", err)
+		}
+	}
+
+	if err := s.itemRepo.SetImage(ctx, id, url, key); err != nil {
+		// Try to clean up the new object since the DB update failed.
+		_ = s.storage.Delete(ctx, key)
+		return nil, err
+	}
+
+	item.ImageURL = url
+	item.ImageKey = key
+	log.Info("menu item photo updated", "item_id", id, "actor_id", actor.ID)
+	return item.ToResponse(), nil
+}
+
+func (s *menuItemService) RemovePhoto(
+	ctx context.Context,
+	actor *domain.User,
+	id uuid.UUID,
+) (*domain.MenuItemResponse, error) {
+	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
+
+	if err := s.rbacService.CheckPermission(actor, domain.PermMenuItemWrite); err != nil {
+		return nil, err
+	}
+
+	item, err := s.itemRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if item.ImageKey != "" {
+		if err := s.storage.Delete(ctx, item.ImageKey); err != nil {
+			log.Warn("failed to delete item photo", "key", item.ImageKey, "error", err)
+		}
+	}
+
+	if err := s.itemRepo.ClearImage(ctx, id); err != nil {
+		return nil, err
+	}
+
+	item.ImageURL = ""
+	item.ImageKey = ""
+	log.Info("menu item photo removed", "item_id", id, "actor_id", actor.ID)
+	return item.ToResponse(), nil
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/ramisoul84/kfc-crm/pkg/jwt"
 	"github.com/ramisoul84/kfc-crm/pkg/kafka"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
+	"github.com/ramisoul84/kfc-crm/pkg/storage"
 	"github.com/ramisoul84/kfc-crm/pkg/validator"
 )
 
@@ -66,6 +67,15 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("database: %w", err)
 	}
 	log.Info("postgres connected")
+
+	photoStorage, err := storage.NewMinIOStorage(cfg.MinIO)
+	if err != nil {
+		return nil, fmt.Errorf("minio storage: %w", err)
+	}
+	log.Info("minio storage ready",
+		"endpoint", cfg.MinIO.Endpoint,
+		"bucket", cfg.MinIO.Bucket,
+	)
 
 	// Redis
 	redisClient, err := database.NewRedis(&cfg.Redis)
@@ -124,8 +134,21 @@ func New(cfg *config.Config) (*App, error) {
 	restaurantService := service.NewRestaurantService(restaurantRepo, rbacService, log)
 	userService := service.NewUserService(userRepo, rbacService, notificationClient, log)
 	deviceService := service.NewDeviceService(deviceRepo, restaurantRepo, rbacService, notificationClient, userAPIClient, log)
-	menuCategoryService := service.NewMenuCategoryService(menuCategoryRepo, rbacService, eventsPublisher, log)
-	menuItemService := service.NewMenuItemService(menuItemRepo, menuCategoryRepo, rbacService, eventsPublisher, log)
+	menuCategoryService := service.NewMenuCategoryService(
+		menuCategoryRepo,
+		photoStorage,
+		rbacService,
+		eventsPublisher,
+		log,
+	)
+	menuItemService := service.NewMenuItemService(
+		menuItemRepo,
+		menuCategoryRepo,
+		photoStorage,
+		rbacService,
+		eventsPublisher,
+		log,
+	)
 	menuItemVariationService := service.NewMenuItemVariationService(
 		menuVariationRepo,
 		menuItemRepo,

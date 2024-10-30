@@ -43,7 +43,6 @@ type UpdateMenuItemRequest struct {
 	CategoryID  uuid.UUID `json:"category_id"  validate:"required"`
 	Name        string    `json:"name"         validate:"required,min=2,max=200"`
 	Description string    `json:"description"  validate:"omitempty,max=1000"`
-	ImageURL    string    `json:"image_url"    validate:"omitempty,url"`
 	BasePrice   float64   `json:"base_price"   validate:"required,gt=0"`
 	SortOrder   int       `json:"sort_order"`
 	IsActive    *bool     `json:"is_active,omitempty"`

@@ -23,13 +23,14 @@ type MenuItemRepository interface {
 	List(ctx context.Context, filter domain.MenuItemFilter) ([]*domain.MenuItem, int, error)
 	Update(ctx context.Context, item *domain.MenuItem) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	SetImage(ctx context.Context, id uuid.UUID, url, key string) error
+	ClearImage(ctx context.Context, id uuid.UUID) error
 }
 
 type menuItemRepo struct {
 	db *sqlx.DB
 }
 
-// NewMenuItemRepository creates a MenuItemRepository.
 func NewMenuItemRepository(db *sqlx.DB) MenuItemRepository {
 	return &menuItemRepo{db: db}
 }
@@ -45,6 +46,7 @@ type menuItemRow struct {
 	Name        string    `db:"name"`
 	Description string    `db:"description"`
 	ImageURL    string    `db:"image_url"`
+	ImageKey    string    `db:"image_key"` // ← added
 	BasePrice   float64   `db:"base_price"`
 	SortOrder   int       `db:"sort_order"`
 	IsActive    bool      `db:"is_active"`
@@ -63,6 +65,7 @@ func (row *menuItemRow) toDomain() *domain.MenuItem {
 		Name:        row.Name,
 		Description: row.Description,
 		ImageURL:    row.ImageURL,
+		ImageKey:    row.ImageKey, // ← added
 		BasePrice:   row.BasePrice,
 		SortOrder:   row.SortOrder,
 		IsActive:    row.IsActive,
@@ -80,6 +83,7 @@ const joinedMenuItemColumns = `
 	mi.id, mi.category_id, mi.product_code, mi.name,
 	COALESCE(mi.description, '') AS description,
 	COALESCE(mi.image_url, '')   AS image_url,
+	COALESCE(mi.image_key, '')   AS image_key,
 	mi.base_price, mi.sort_order, mi.is_active,
 	mi.created_at, mi.updated_at,
 	mc.name AS category_name,
@@ -91,8 +95,11 @@ const joinedMenuItemColumns = `
 // ═══════════════════════════════════════════════════════════════════
 
 func (r *menuItemRepo) Create(ctx context.Context, item *domain.MenuItem) error {
+	// image_key is intentionally omitted — it's set only by SetImage.
 	query := `
-		INSERT INTO menu_items (id, category_id, product_code, name, description, image_url, base_price, sort_order, is_active)
+		INSERT INTO menu_items
+			(id, category_id, product_code, name, description,
+			 image_url, base_price, sort_order, is_active)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING created_at, updated_at
 	`
@@ -130,6 +137,7 @@ func (r *menuItemRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.MenuI
 		SELECT id, category_id, product_code, name,
 		       COALESCE(description, '') AS description,
 		       COALESCE(image_url, '')   AS image_url,
+		       COALESCE(image_key, '')   AS image_key,
 		       base_price, sort_order, is_active, created_at, updated_at, deleted_at
 		FROM menu_items
 		WHERE id = $1 AND deleted_at IS NULL
@@ -168,6 +176,7 @@ func (r *menuItemRepo) GetByProductCode(ctx context.Context, code string) (*doma
 		SELECT id, category_id, product_code, name,
 		       COALESCE(description, '') AS description,
 		       COALESCE(image_url, '')   AS image_url,
+		       COALESCE(image_key, '')   AS image_key,
 		       base_price, sort_order, is_active, created_at, updated_at, deleted_at
 		FROM menu_items
 		WHERE product_code = $1 AND deleted_at IS NULL
@@ -255,11 +264,19 @@ func (r *menuItemRepo) List(ctx context.Context, filter domain.MenuItemFilter) (
 // UPDATE
 // ═══════════════════════════════════════════════════════════════════
 
+// Update writes only the fields the update form owns. image_url and
+// image_key are managed exclusively by SetImage / ClearImage — a form
+// save must never touch them, or it will wipe an uploaded photo.
 func (r *menuItemRepo) Update(ctx context.Context, item *domain.MenuItem) error {
 	query := `
 		UPDATE menu_items
-		SET category_id = $2, name = $3, description = $4, image_url = $5,
-		    base_price = $6, sort_order = $7, is_active = $8, updated_at = NOW()
+		SET category_id = $2,
+		    name = $3,
+		    description = $4,
+		    base_price = $5,
+		    sort_order = $6,
+		    is_active = $7,
+		    updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
@@ -269,7 +286,6 @@ func (r *menuItemRepo) Update(ctx context.Context, item *domain.MenuItem) error 
 		item.CategoryID,
 		item.Name,
 		nullableString(item.Description),
-		nullableString(item.ImageURL),
 		item.BasePrice,
 		item.SortOrder,
 		item.IsActive,
@@ -304,6 +320,42 @@ func (r *menuItemRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
+		return domain.NewNotFoundError("menu item not found")
+	}
+	return nil
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// IMAGE
+// ═══════════════════════════════════════════════════════════════════
+
+func (r *menuItemRepo) SetImage(ctx context.Context, id uuid.UUID, url, key string) error {
+	query := `
+		UPDATE menu_items
+		SET image_url = $2, image_key = $3, updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	result, err := r.db.ExecContext(ctx, query, id, url, key)
+	if err != nil {
+		return fmt.Errorf("set item image: %w", err)
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return domain.NewNotFoundError("menu item not found")
+	}
+	return nil
+}
+
+func (r *menuItemRepo) ClearImage(ctx context.Context, id uuid.UUID) error {
+	query := `
+		UPDATE menu_items
+		SET image_url = NULL, image_key = NULL, updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("clear item image: %w", err)
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
 		return domain.NewNotFoundError("menu item not found")
 	}
 	return nil

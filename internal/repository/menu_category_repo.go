@@ -21,6 +21,11 @@ type MenuCategoryRepository interface {
 	List(ctx context.Context, filter domain.MenuCategoryFilter) ([]*domain.MenuCategory, int, error)
 	Update(ctx context.Context, category *domain.MenuCategory) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	// SetImage stores the photo URL and object key on a category.
+	SetImage(ctx context.Context, id uuid.UUID, url, key string) error
+
+	// ClearImage removes both the URL and the object key from a category.
+	ClearImage(ctx context.Context, id uuid.UUID) error
 }
 
 type menuCategoryRepo struct {
@@ -34,8 +39,8 @@ func NewMenuCategoryRepository(db *sqlx.DB) MenuCategoryRepository {
 
 func (r *menuCategoryRepo) Create(ctx context.Context, category *domain.MenuCategory) error {
 	query := `
-		INSERT INTO menu_categories (id, name, code, description, image_url, sort_order, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO menu_categories (id, name, code, description, image_url,image_key, sort_order, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING created_at, updated_at
 	`
 
@@ -45,6 +50,7 @@ func (r *menuCategoryRepo) Create(ctx context.Context, category *domain.MenuCate
 		category.Code,
 		nullableString(category.Description),
 		nullableString(category.ImageURL),
+		nullableString(category.ImageKey),
 		category.SortOrder,
 		category.IsActive,
 	).Scan(&category.CreatedAt, &category.UpdatedAt)
@@ -63,6 +69,7 @@ func (r *menuCategoryRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.M
 		SELECT id, name, code,
 		       COALESCE(description, '') AS description,
 		       COALESCE(image_url, '')   AS image_url,
+			   COALESCE(image_key, '')   AS image_key,
 		       sort_order, is_active, created_at, updated_at, deleted_at
 		FROM menu_categories
 		WHERE id = $1 AND deleted_at IS NULL
@@ -83,6 +90,7 @@ func (r *menuCategoryRepo) GetByCode(ctx context.Context, code string) (*domain.
 		SELECT id, name, code,
 		       COALESCE(description, '') AS description,
 		       COALESCE(image_url, '')   AS image_url,
+			   COALESCE(image_key, '')   AS image_key,
 		       sort_order, is_active, created_at, updated_at, deleted_at
 		FROM menu_categories
 		WHERE code = $1 AND deleted_at IS NULL
@@ -103,6 +111,7 @@ func (r *menuCategoryRepo) List(ctx context.Context, filter domain.MenuCategoryF
 		SELECT id, name, code,
 		       COALESCE(description, '') AS description,
 		       COALESCE(image_url, '')   AS image_url,
+			   COALESCE(image_key, '')   AS image_key,
 		       sort_order, is_active, created_at, updated_at
 		FROM menu_categories
 		WHERE deleted_at IS NULL
@@ -160,8 +169,8 @@ func (r *menuCategoryRepo) List(ctx context.Context, filter domain.MenuCategoryF
 func (r *menuCategoryRepo) Update(ctx context.Context, category *domain.MenuCategory) error {
 	query := `
 		UPDATE menu_categories
-		SET name = $2, description = $3, image_url = $4,
-		    sort_order = $5, is_active = $6, updated_at = NOW()
+		SET name = $2, description = $3,
+		    sort_order = $4, is_active = $5, updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
@@ -170,7 +179,6 @@ func (r *menuCategoryRepo) Update(ctx context.Context, category *domain.MenuCate
 		category.ID,
 		category.Name,
 		nullableString(category.Description),
-		nullableString(category.ImageURL),
 		category.SortOrder,
 		category.IsActive,
 	).Scan(&category.UpdatedAt)
@@ -197,6 +205,38 @@ func (r *menuCategoryRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
+		return domain.NewNotFoundError("menu category not found")
+	}
+	return nil
+}
+
+func (r *menuCategoryRepo) SetImage(ctx context.Context, id uuid.UUID, url, key string) error {
+	query := `
+		UPDATE menu_categories
+		SET image_url = $2, image_key = $3, updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	result, err := r.db.ExecContext(ctx, query, id, url, key)
+	if err != nil {
+		return fmt.Errorf("set category image: %w", err)
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return domain.NewNotFoundError("menu category not found")
+	}
+	return nil
+}
+
+func (r *menuCategoryRepo) ClearImage(ctx context.Context, id uuid.UUID) error {
+	query := `
+		UPDATE menu_categories
+		SET image_url = NULL, image_key = NULL, updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("clear category image: %w", err)
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
 		return domain.NewNotFoundError("menu category not found")
 	}
 	return nil

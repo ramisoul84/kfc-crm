@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"io"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
@@ -149,4 +151,63 @@ func (h *MenuCategoryHandler) Delete(c *fiber.Ctx) error {
 	return response.Success(c, fiber.Map{
 		"message": "menu category deleted successfully",
 	})
+}
+
+// UploadPhoto handles POST /api/v1/menu/categories/:id/photo.
+func (h *MenuCategoryHandler) UploadPhoto(c *fiber.Ctx) error {
+	actor := ctxutil.GetUserFromFiber(c)
+	if actor == nil {
+		return response.Error(c, domain.NewAuthenticationError("not authenticated"))
+	}
+
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return response.Error(c, domain.NewValidationError("invalid category ID"))
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		return response.Error(c, domain.NewValidationError("file is required"))
+	}
+	if file.Size > maxPhotoBytes {
+		return response.Error(c, domain.NewValidationError("file exceeds 5 MB limit"))
+	}
+
+	f, err := file.Open()
+	if err != nil {
+		return response.Error(c, domain.NewInternalError(err))
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return response.Error(c, domain.NewInternalError(err))
+	}
+
+	category, err := h.categoryService.SetPhoto(
+		c.Context(), actor, id, data, file.Header.Get("Content-Type"),
+	)
+	if err != nil {
+		return response.Error(c, err)
+	}
+	return response.Success(c, category)
+}
+
+// DeletePhoto handles DELETE /api/v1/menu/categories/:id/photo.
+func (h *MenuCategoryHandler) DeletePhoto(c *fiber.Ctx) error {
+	actor := ctxutil.GetUserFromFiber(c)
+	if actor == nil {
+		return response.Error(c, domain.NewAuthenticationError("not authenticated"))
+	}
+
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return response.Error(c, domain.NewValidationError("invalid category ID"))
+	}
+
+	category, err := h.categoryService.RemovePhoto(c.Context(), actor, id)
+	if err != nil {
+		return response.Error(c, err)
+	}
+	return response.Success(c, category)
 }

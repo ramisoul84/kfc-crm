@@ -125,9 +125,10 @@ func (s *Server) registerMiddleware() {
 	s.app.Use(middleware.Logging(s.logger))
 	s.app.Use(recover.New())
 	s.app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET,POST,PUT,DELETE,PATCH,OPTIONS",
-		AllowHeaders: "Origin,Content-Type,Accept,Authorization,X-Request-ID",
+		AllowOrigins:     "http://localhost:4200",
+		AllowMethods:     "GET,POST,PUT,DELETE,PATCH,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Request-ID",
+		AllowCredentials: true,
 	}))
 }
 
@@ -200,12 +201,15 @@ func (s *Server) registerRoutes() {
 	// Menu
 	menu := protected.Group("/menu")
 
+	// Categories
 	categories := menu.Group("/categories")
 	categories.Post("/", s.menuCategoryHandler.Create)
 	categories.Get("/", s.menuCategoryHandler.List)
 	categories.Get("/:id", s.menuCategoryHandler.GetByID)
 	categories.Put("/:id", s.menuCategoryHandler.Update)
 	categories.Delete("/:id", s.menuCategoryHandler.Delete)
+	categories.Post("/:id/photo", s.menuCategoryHandler.UploadPhoto)
+	categories.Delete("/:id/photo", s.menuCategoryHandler.DeletePhoto)
 
 	// Items
 	items := menu.Group("/items")
@@ -214,6 +218,8 @@ func (s *Server) registerRoutes() {
 	items.Get("/:id", s.menuItemHandler.GetByID)
 	items.Put("/:id", s.menuItemHandler.Update)
 	items.Delete("/:id", s.menuItemHandler.Delete)
+	items.Post("/:id/photo", s.menuItemHandler.UploadPhoto)
+	items.Delete("/:id/photo", s.menuItemHandler.DeletePhoto)
 
 	// Variations
 	variations := menu.Group("/variations")

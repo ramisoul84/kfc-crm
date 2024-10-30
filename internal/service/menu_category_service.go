@@ -10,6 +10,7 @@ import (
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
+	"github.com/ramisoul84/kfc-crm/pkg/storage"
 )
 
 // MenuCategoryService handles menu category business logic.
@@ -19,10 +20,16 @@ type MenuCategoryService interface {
 	List(ctx context.Context, actor *domain.User, filter domain.MenuCategoryFilter) ([]*domain.MenuCategoryResponse, int, error)
 	Update(ctx context.Context, actor *domain.User, id uuid.UUID, req *domain.UpdateMenuCategoryRequest) (*domain.MenuCategoryResponse, error)
 	Delete(ctx context.Context, actor *domain.User, id uuid.UUID) error
+	// SetPhoto uploads an image for the category and stores its URL.
+	SetPhoto(ctx context.Context, actor *domain.User, id uuid.UUID, data []byte, mimeType string) (*domain.MenuCategoryResponse, error)
+
+	// RemovePhoto deletes the category's image from storage and clears its URL.
+	RemovePhoto(ctx context.Context, actor *domain.User, id uuid.UUID) (*domain.MenuCategoryResponse, error)
 }
 
 type menuCategoryService struct {
 	categoryRepo repository.MenuCategoryRepository
+	storage      storage.PhotoStorage
 	rbacService  RBACService
 	publisher    *events.Publisher
 	logger       *logger.Logger
@@ -31,12 +38,14 @@ type menuCategoryService struct {
 // NewMenuCategoryService creates a MenuCategoryService.
 func NewMenuCategoryService(
 	categoryRepo repository.MenuCategoryRepository,
+	storage storage.PhotoStorage,
 	rbacService RBACService,
 	publisher *events.Publisher,
 	log *logger.Logger,
 ) MenuCategoryService {
 	return &menuCategoryService{
 		categoryRepo: categoryRepo,
+		storage:      storage,
 		rbacService:  rbacService,
 		publisher:    publisher,
 		logger:       log,
@@ -184,7 +193,6 @@ func (s *menuCategoryService) Update(
 	// 3. Apply updates
 	category.Name = req.Name
 	category.Description = req.Description
-	category.ImageURL = req.ImageURL
 	category.SortOrder = req.SortOrder
 	if req.IsActive != nil {
 		category.IsActive = *req.IsActive
@@ -232,6 +240,147 @@ func (s *menuCategoryService) Delete(
 
 	return nil
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// PHOTO
+// ═══════════════════════════════════════════════════════════════════
+
+// SetPhoto uploads an image, stores it under the category's owner prefix
+// in MinIO, and updates the category's image_url + image_key.
+//
+// Upload happens first: if MinIO is unavailable, the DB is untouched.
+// If the DB update fails after a successful upload, the newly uploaded
+// object is removed so we don't leave an orphan.
+func (s *menuCategoryService) SetPhoto(
+	ctx context.Context,
+	actor *domain.User,
+	id uuid.UUID,
+	data []byte,
+	mimeType string,
+) (*domain.MenuCategoryResponse, error) {
+	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
+
+	// 1. Authorization — same permission as any other category write.
+	if err := s.rbacService.CheckPermission(actor, domain.PermMenuCategoryWrite); err != nil {
+		log.Warn("set category photo denied", "actor_id", actor.ID, "error", err)
+		return nil, err
+	}
+
+	// 2. Load the category — needed for the old image key cleanup.
+	category, err := s.categoryRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Upload to storage.
+	url, key, err := s.storage.Upload(ctx, id.String(), data, mimeType)
+	if err != nil {
+		log.Error("category photo upload failed",
+			"category_id", id,
+			"error", err,
+		)
+		return nil, domain.NewInternalError(err)
+	}
+
+	// 4. Delete the previous photo, if any. Best-effort — if this fails,
+	//    we keep the new one and log the orphan.
+	if category.ImageKey != "" && category.ImageKey != key {
+		if err := s.storage.Delete(ctx, category.ImageKey); err != nil {
+			log.Warn("failed to delete old category photo",
+				"category_id", id,
+				"key", category.ImageKey,
+				"error", err,
+			)
+		}
+	}
+
+	// 5. Persist the new URL and key.
+	if err := s.categoryRepo.SetImage(ctx, id, url, key); err != nil {
+		// Roll back the upload to avoid an orphaned object.
+		if delErr := s.storage.Delete(ctx, key); delErr != nil {
+			log.Warn("failed to roll back uploaded photo",
+				"category_id", id,
+				"key", key,
+				"error", delErr,
+			)
+		}
+		log.Warn("failed to set category photo",
+			"category_id", id,
+			"key", key,
+			"error", err,
+		)
+		return nil, err
+	}
+
+	// 6. Update the in-memory entity so ToResponse returns the new URL.
+	category.ImageURL = url
+	category.ImageKey = key
+
+	log.Info("menu category photo updated",
+		"category_id", id,
+		"actor_id", actor.ID,
+	)
+
+	// 7. Invalidate the effective menu cache — the image is part of the
+	//    menu payload that kiosks render.
+	s.publishMenuChanged(ctx, "category.photo")
+
+	return category.ToResponse(), nil
+}
+
+// RemovePhoto deletes the category's image from storage and clears the
+// image_url + image_key columns. Idempotent: calling it when there is
+// no photo is a no-op that returns the current state.
+func (s *menuCategoryService) RemovePhoto(
+	ctx context.Context,
+	actor *domain.User,
+	id uuid.UUID,
+) (*domain.MenuCategoryResponse, error) {
+	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
+
+	if err := s.rbacService.CheckPermission(actor, domain.PermMenuCategoryWrite); err != nil {
+		log.Warn("remove category photo denied", "actor_id", actor.ID, "error", err)
+		return nil, err
+	}
+
+	category, err := s.categoryRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Delete the object if we have a key. Best-effort — the DB row
+	// being cleared matters more than the storage object.
+	if category.ImageKey != "" {
+		if err := s.storage.Delete(ctx, category.ImageKey); err != nil {
+			log.Warn("failed to delete category photo",
+				"category_id", id,
+				"key", category.ImageKey,
+				"error", err,
+			)
+		}
+	}
+
+	if err := s.categoryRepo.ClearImage(ctx, id); err != nil {
+		return nil, err
+	}
+
+	category.ImageURL = ""
+	category.ImageKey = ""
+
+	log.Info("menu category photo removed",
+		"category_id", id,
+		"actor_id", actor.ID,
+	)
+
+	// Invalidate the cache so kiosks drop the image.
+	s.publishMenuChanged(ctx, "category.photo")
+
+	return category.ToResponse(), nil
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
 
 // publishMenuChanged notifies userapi that the master menu changed.
 // Categories are global, so this affects every restaurant.
