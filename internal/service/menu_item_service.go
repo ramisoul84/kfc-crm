@@ -206,7 +206,6 @@ func (s *menuItemService) Update(
 	item.CategoryID = req.CategoryID
 	item.Name = req.Name
 	item.Description = req.Description
-	item.ImageURL = req.ImageURL
 	item.BasePrice = req.BasePrice
 	item.SortOrder = req.SortOrder
 	if req.IsActive != nil {
