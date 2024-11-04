@@ -30,8 +30,9 @@ type Server struct {
 	userHandler       *handler.UserHandler
 	deviceHandler     *handler.DeviceHandler
 
-	menuCategoryHandler *handler.MenuCategoryHandler
-	menuItemHandler     *handler.MenuItemHandler
+	menuCategoryHandler      *handler.MenuCategoryHandler
+	menuItemHandler          *handler.MenuItemHandler
+	menuItemVariationHandler *handler.MenuItemVariationHandler
 
 	tokenManager *jwt.TokenManager
 	tokenRepo    repository.TokenRepository
@@ -49,6 +50,7 @@ func NewServer(
 	deviceHandler *handler.DeviceHandler,
 	menuCategoryHandler *handler.MenuCategoryHandler,
 	menuItemHandler *handler.MenuItemHandler,
+	menuItemVariationHandler *handler.MenuItemVariationHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -63,19 +65,20 @@ func NewServer(
 	})
 
 	s := &Server{
-		app:                 app,
-		cfg:                 cfg,
-		logger:              log,
-		authHandler:         authHandler,
-		regionHandler:       regionHandler,
-		restaurantHandler:   restaurantHandler,
-		userHandler:         userHandler,
-		deviceHandler:       deviceHandler,
-		menuCategoryHandler: menuCategoryHandler,
-		menuItemHandler:     menuItemHandler,
-		tokenManager:        tokenManager,
-		tokenRepo:           tokenRepo,
-		userRepo:            userRepo,
+		app:                      app,
+		cfg:                      cfg,
+		logger:                   log,
+		authHandler:              authHandler,
+		regionHandler:            regionHandler,
+		restaurantHandler:        restaurantHandler,
+		userHandler:              userHandler,
+		deviceHandler:            deviceHandler,
+		menuCategoryHandler:      menuCategoryHandler,
+		menuItemHandler:          menuItemHandler,
+		menuItemVariationHandler: menuItemVariationHandler,
+		tokenManager:             tokenManager,
+		tokenRepo:                tokenRepo,
+		userRepo:                 userRepo,
 	}
 
 	s.registerMiddleware()
@@ -198,6 +201,17 @@ func (s *Server) registerRoutes() {
 	items.Get("/:id", s.menuItemHandler.GetByID)
 	items.Put("/:id", s.menuItemHandler.Update)
 	items.Delete("/:id", s.menuItemHandler.Delete)
+
+	// Variations
+	variations := menu.Group("/variations")
+	variations.Post("/", s.menuItemVariationHandler.Create)
+	variations.Get("/:id", s.menuItemVariationHandler.GetByID)
+	variations.Put("/:id", s.menuItemVariationHandler.Update)
+	variations.Delete("/:id", s.menuItemVariationHandler.Delete)
+
+	// Variations for a specific item
+	menu.Get("/items/:item_id/variations", s.menuItemVariationHandler.ListByItem)
+
 }
 
 // ═══════════════════════════════════════════════════════════════════
