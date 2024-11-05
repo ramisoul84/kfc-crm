@@ -21,7 +21,9 @@ type Producer struct {
 func NewProducer(brokers []string, log *logger.Logger) *Producer {
 	w := &kafka.Writer{
 		Addr:                   kafka.TCP(brokers...),
-		Balancer:               &kafka.LeastBytes{},
+		// Hash on the message key so every event for one restaurant lands
+		// on the same partition and consumers see them in order.
+		Balancer:               &kafka.Hash{},
 		RequiredAcks:           kafka.RequireOne,
 		Async:                  false,
 		Compression:            kafka.Snappy,
