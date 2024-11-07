@@ -17,6 +17,7 @@ type Config struct {
 	JWT          JWTConfig
 	Notification NotificationConfig
 	UserAPI      UserAPIConfig
+	Order        OrderConfig
 	Kafka        KafkaConfig
 	MinIO        MinIOConfig
 }
@@ -36,6 +37,9 @@ type HTTPConfig struct {
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
 	ShutdownTimeout time.Duration
+	// CORSAllowOrigins is a comma-separated list of browser origins
+	// allowed to call the API (the CRM web app).
+	CORSAllowOrigins string
 }
 
 // GRPCConfig holds gRPC server configuration
@@ -67,6 +71,7 @@ type DatabaseConfig struct {
 	MaxConnIdleTime time.Duration
 	ConnectTimeout  time.Duration
 	Timezone        string
+	AutoMigrate     bool
 }
 
 // RedisConfig holds Redis connection settings.
@@ -103,6 +108,12 @@ type UserAPIConfig struct {
 	Enabled bool
 }
 
+// OrderConfig holds kfc-order service settings.
+type OrderConfig struct {
+	Address string
+	Timeout time.Duration
+}
+
 type KafkaConfig struct {
 	Brokers []string
 }
@@ -132,11 +143,12 @@ func Load() (*Config, error) {
 		},
 
 		HTTP: HTTPConfig{
-			Port:            getEnv("HTTP_PORT", "8000"),
-			ReadTimeout:     getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second),
-			WriteTimeout:    getEnvDuration("HTTP_WRITE_TIMEOUT", 15*time.Second),
-			IdleTimeout:     getEnvDuration("HTTP_IDLE_TIMEOUT", 60*time.Second),
-			ShutdownTimeout: getEnvDuration("HTTP_SHUTDOWN_TIMEOUT", 10*time.Second),
+			Port:             getEnv("HTTP_PORT", "8000"),
+			ReadTimeout:      getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second),
+			WriteTimeout:     getEnvDuration("HTTP_WRITE_TIMEOUT", 15*time.Second),
+			IdleTimeout:      getEnvDuration("HTTP_IDLE_TIMEOUT", 60*time.Second),
+			ShutdownTimeout:  getEnvDuration("HTTP_SHUTDOWN_TIMEOUT", 10*time.Second),
+			CORSAllowOrigins: getEnv("CORS_ALLOW_ORIGINS", "http://localhost:4200"),
 		},
 
 		GRPC: GRPCConfig{
@@ -165,6 +177,7 @@ func Load() (*Config, error) {
 			MaxConnIdleTime: getEnvDuration("DB_MAX_CONN_IDLE_TIME", 30*time.Minute),
 			ConnectTimeout:  getEnvDuration("DB_CONNECT_TIMEOUT", 10*time.Second),
 			Timezone:        getEnv("DB_TIMEZONE", "Europe/Moscow"),
+			AutoMigrate:     getEnvBool("DB_AUTO_MIGRATE", true),
 		},
 
 		Redis: RedisConfig{
@@ -195,6 +208,11 @@ func Load() (*Config, error) {
 			Address: getEnv("USERAPI_ADDRESS", "localhost:9102"),
 			Timeout: getEnvDuration("USERAPI_TIMEOUT", 5*time.Second),
 			Enabled: getEnvBool("USERAPI_ENABLED", true),
+		},
+
+		Order: OrderConfig{
+			Address: getEnv("ORDER_ADDRESS", "localhost:9103"),
+			Timeout: getEnvDuration("ORDER_TIMEOUT", 5*time.Second),
 		},
 
 		Kafka: KafkaConfig{

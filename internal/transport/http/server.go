@@ -125,7 +125,7 @@ func (s *Server) registerMiddleware() {
 	s.app.Use(middleware.Logging(s.logger))
 	s.app.Use(recover.New())
 	s.app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:4200",
+		AllowOrigins:     s.cfg.HTTP.CORSAllowOrigins,
 		AllowMethods:     "GET,POST,PUT,DELETE,PATCH,OPTIONS",
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Request-ID",
 		AllowCredentials: true,

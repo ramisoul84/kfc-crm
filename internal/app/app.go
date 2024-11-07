@@ -13,10 +13,12 @@ import (
 	grpcTransport "github.com/ramisoul84/kfc-crm/internal/transport/grpc"
 	httpTransport "github.com/ramisoul84/kfc-crm/internal/transport/http"
 	"github.com/ramisoul84/kfc-crm/internal/transport/http/handler"
+	"github.com/ramisoul84/kfc-crm/migrations"
 	"github.com/ramisoul84/kfc-crm/pkg/database"
 	"github.com/ramisoul84/kfc-crm/pkg/jwt"
 	"github.com/ramisoul84/kfc-crm/pkg/kafka"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
+	"github.com/ramisoul84/kfc-crm/pkg/migrate"
 	"github.com/ramisoul84/kfc-crm/pkg/storage"
 	"github.com/ramisoul84/kfc-crm/pkg/validator"
 )
@@ -68,6 +70,15 @@ func New(cfg *config.Config) (*App, error) {
 	}
 	log.Info("postgres connected")
 
+	if cfg.DB.AutoMigrate {
+		applied, err := migrate.Up(context.Background(), db.DB, migrations.FS)
+		if err != nil {
+			db.Close()
+			return nil, fmt.Errorf("migrate: %w", err)
+		}
+		log.Info("migrations up to date", "applied", applied)
+	}
+
 	photoStorage, err := storage.NewMinIOStorage(cfg.MinIO)
 	if err != nil {
 		return nil, fmt.Errorf("minio storage: %w", err)
@@ -91,10 +102,6 @@ func New(cfg *config.Config) (*App, error) {
 		cfg.JWT.AccessDuration,
 		cfg.JWT.RefreshDuration,
 	)
-
-	// ─────────────────────────────────────────────────────────────────
-	// gRPC clients to peer services
-	// ─────────────────────────────────────────────────────────────────
 
 	// ─────────────────────────────────────────────────────────────────
 	// gRPC clients to peer services
