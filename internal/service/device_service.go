@@ -517,6 +517,7 @@ func (s *deviceService) PairDevice(
 		RestaurantID: device.RestaurantID.String(),
 		SerialNumber: device.SerialNumber,
 		DeviceID:     device.ID.String(),
+		DeviceType:   string(device.Type),
 		Code:         code,
 		ExpiresAt:    expiresAt,
 	}); err != nil {
@@ -581,6 +582,7 @@ func (s *deviceService) cacheCodesInUserAPI(
 		req.Codes = append(req.Codes, client.PairingCodeEntry{
 			SerialNumber: e.SerialNumber,
 			DeviceID:     e.DeviceID.String(),
+			DeviceType:   e.DeviceType,
 			Code:         e.Code,
 		})
 	}

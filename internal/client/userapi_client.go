@@ -34,6 +34,7 @@ type CachePairingCodesRequest struct {
 type PairingCodeEntry struct {
 	SerialNumber string
 	DeviceID     string
+	DeviceType   string
 	Code         string
 }
 
@@ -41,6 +42,7 @@ type CachePairingCodeRequest struct {
 	RestaurantID string
 	SerialNumber string
 	DeviceID     string
+	DeviceType   string
 	Code         string
 	ExpiresAt    time.Time
 }
@@ -80,6 +82,7 @@ func (c *userAPIClient) CachePairingCodes(ctx context.Context, req *CachePairing
 		codes = append(codes, &devicepairingv1.PairingCode{
 			SerialNumber: e.SerialNumber,
 			DeviceId:     e.DeviceID,
+			DeviceType:   e.DeviceType,
 			Code:         e.Code,
 		})
 	}
@@ -106,6 +109,7 @@ func (c *userAPIClient) CachePairingCode(ctx context.Context, req *CachePairingC
 		RestaurantId: req.RestaurantID,
 		SerialNumber: req.SerialNumber,
 		DeviceId:     req.DeviceID,
+		DeviceType:   req.DeviceType,
 		Code:         req.Code,
 		ExpiresAt:    req.ExpiresAt.Unix(),
 	})
