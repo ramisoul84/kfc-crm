@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ramisoul84/kfc-crm/internal/client"
 	"github.com/ramisoul84/kfc-crm/internal/config"
@@ -30,6 +31,7 @@ type App struct {
 	db                 *database.Postgres
 	redis              *database.Redis
 	notificationClient client.NotificationClient
+	orderClient        client.OrderClient
 	server             *httpTransport.Server
 	grpcServer         *grpcTransport.Transport
 	kafkaProducer      *kafka.Producer
@@ -119,6 +121,13 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, err
 	}
 
+	// Order client (lazy: kfc-order may start after CRM)
+	orderClient, err := client.NewOrderClient(&cfg.Order)
+	if err != nil {
+		return nil, fmt.Errorf("order client: %w", err)
+	}
+	log.Info("order client initialized", "address", cfg.Order.Address)
+
 	// Repositories
 	userRepo := repository.NewUserRepository(db.DB)
 	tokenRepo := repository.NewTokenRepository(redisClient.Client)
@@ -178,6 +187,8 @@ func New(cfg *config.Config) (*App, error) {
 		log,
 	)
 
+	orderService := service.NewOrderService(orderClient, restaurantRepo, rbacService, log)
+
 	// Validator
 	v := validator.New()
 
@@ -194,6 +205,12 @@ func New(cfg *config.Config) (*App, error) {
 	menuPromotionHandler := handler.NewMenuPromotionHandler(menuPromotionService, v)
 	effectiveMenuHandler := handler.NewEffectiveMenuHandler(effectiveMenuService)
 
+	businessLoc, err := time.LoadLocation(cfg.DB.Timezone)
+	if err != nil {
+		return nil, fmt.Errorf("load timezone %q: %w", cfg.DB.Timezone, err)
+	}
+	orderHandler := handler.NewOrderHandler(orderService, v, businessLoc)
+
 	// Server
 	server := httpTransport.NewServer(
 		cfg,
@@ -209,6 +226,7 @@ func New(cfg *config.Config) (*App, error) {
 		menuItemOverrideHandler,
 		menuPromotionHandler,
 		effectiveMenuHandler,
+		orderHandler,
 		tokenManager,
 		tokenRepo,
 		userRepo,
@@ -216,7 +234,8 @@ func New(cfg *config.Config) (*App, error) {
 
 	// gRPC server (NEW)
 	menuServer := grpcTransport.NewMenuServer(effectiveMenuService, log)
-	grpcServer := grpcTransport.NewTransport(cfg, log, menuServer)
+	restaurantServer := grpcTransport.NewRestaurantServer(restaurantRepo, regionRepo, log)
+	grpcServer := grpcTransport.NewTransport(cfg, log, menuServer, restaurantServer)
 
 	return &App{
 		config:             cfg,
@@ -224,8 +243,10 @@ func New(cfg *config.Config) (*App, error) {
 		db:                 db,
 		redis:              redisClient,
 		notificationClient: notificationClient,
+		orderClient:        orderClient,
 		server:             server,
 		grpcServer:         grpcServer,
+		kafkaProducer:      kafkaProducer,
 	}, nil
 }
 
@@ -280,6 +301,9 @@ func (a *App) Shutdown(ctx context.Context) error {
 
 	if a.notificationClient != nil {
 		_ = a.notificationClient.Close()
+	}
+	if a.orderClient != nil {
+		_ = a.orderClient.Close()
 	}
 	if a.redis != nil {
 		_ = a.redis.Close()

@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 
 	menuv1 "github.com/ramisoul84/kfc-crm/gen/menu/v1"
+	restaurantv1 "github.com/ramisoul84/kfc-crm/gen/restaurant/v1"
 	"github.com/ramisoul84/kfc-crm/internal/config"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
 )
@@ -25,6 +26,7 @@ func NewTransport(
 	cfg *config.Config,
 	log *logger.Logger,
 	menuServer *MenuServer,
+	restaurantServer *RestaurantServer,
 ) *Transport {
 	srv := grpc.NewServer(
 	// Interceptors (service-token auth, request-id, logging, recovery)
@@ -33,6 +35,7 @@ func NewTransport(
 
 	// Register all gRPC services here.
 	menuv1.RegisterMenuServiceServer(srv, menuServer)
+	restaurantv1.RegisterRestaurantDirectoryServer(srv, restaurantServer)
 
 	return &Transport{
 		srv:    srv,

@@ -36,6 +36,7 @@ type Server struct {
 	menuItemOverrideHandler  *handler.MenuItemOverrideHandler
 	menuPromotionHandler     *handler.MenuPromotionHandler
 	effectiveMenuHandler     *handler.EffectiveMenuHandler
+	orderHandler             *handler.OrderHandler
 
 	tokenManager *jwt.TokenManager
 	tokenRepo    repository.TokenRepository
@@ -57,6 +58,7 @@ func NewServer(
 	menuItemOverrideHandler *handler.MenuItemOverrideHandler,
 	menuPromotionHandler *handler.MenuPromotionHandler,
 	effectiveMenuHandler *handler.EffectiveMenuHandler,
+	orderHandler *handler.OrderHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -85,6 +87,7 @@ func NewServer(
 		menuItemOverrideHandler:  menuItemOverrideHandler,
 		menuPromotionHandler:     menuPromotionHandler,
 		effectiveMenuHandler:     effectiveMenuHandler,
+		orderHandler:             orderHandler,
 		tokenManager:             tokenManager,
 		tokenRepo:                tokenRepo,
 		userRepo:                 userRepo,
@@ -253,6 +256,13 @@ func (s *Server) registerRoutes() {
 	// Effective menu for a restaurant
 	protected.Get("/restaurants/:restaurant_id/menu",
 		s.effectiveMenuHandler.Get)
+
+	// Orders (stats FIRST so "stats" doesn't match ":id")
+	orders := protected.Group("/orders")
+	orders.Get("/stats", s.orderHandler.Stats)
+	orders.Get("/", s.orderHandler.List)
+	orders.Get("/:id", s.orderHandler.GetByID)
+	orders.Post("/:id/cancel", s.orderHandler.Cancel)
 }
 
 // ═══════════════════════════════════════════════════════════════════

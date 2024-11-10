@@ -117,6 +117,10 @@ const (
 	PermMenuPromotionRead   Permission = "menu.promotion.read"
 	PermMenuPromotionWrite  Permission = "menu.promotion.write"
 	PermMenuPromotionDelete Permission = "menu.promotion.delete"
+
+	// Order permissions
+	PermOrderRead   Permission = "order.read"
+	PermOrderCancel Permission = "order.cancel"
 )
 
 // ═══════════════════════════════════════════════════════════════════
@@ -135,6 +139,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuVariationRead, PermMenuVariationWrite, PermMenuVariationDelete,
 		PermMenuOverrideRead, PermMenuOverrideWrite, PermMenuOverrideDelete,
 		PermMenuPromotionRead, PermMenuPromotionWrite, PermMenuPromotionDelete,
+		PermOrderRead, PermOrderCancel,
 	},
 	RoleRegionalManager: {
 		PermRegionRead,
@@ -146,6 +151,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuVariationRead,
 		PermMenuOverrideRead, PermMenuOverrideWrite, PermMenuOverrideDelete,
 		PermMenuPromotionRead, PermMenuPromotionWrite, PermMenuPromotionDelete,
+		PermOrderRead, PermOrderCancel,
 	},
 	RoleRestaurantManager: {
 		PermRestaurantRead,
@@ -156,6 +162,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuVariationRead,
 		PermMenuOverrideRead, PermMenuOverrideWrite, PermMenuOverrideDelete,
 		PermMenuPromotionRead,
+		PermOrderRead, PermOrderCancel,
 	},
 	RoleShiftManager: {
 		PermRestaurantRead,
@@ -166,6 +173,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuVariationRead,
 		PermMenuOverrideRead,
 		PermMenuPromotionRead,
+		PermOrderRead, PermOrderCancel,
 	},
 	RoleCashier: {
 		PermRestaurantRead,
@@ -174,6 +182,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuVariationRead,
 		PermMenuOverrideRead,
 		PermMenuPromotionRead,
+		PermOrderRead,
 	},
 }
 
