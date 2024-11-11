@@ -93,6 +93,7 @@ func (s *orderService) List(
 		Status:        filter.Status,
 		Channel:       filter.Channel,
 		Number:        int32(filter.Number),
+		MemberId:      memberIDString(filter.MemberID),
 		Limit:         int32(filter.Limit),
 		Offset:        int32(filter.Offset),
 	}
@@ -376,30 +377,33 @@ func (s *orderService) mapError(ctx context.Context, op string, err error) error
 
 func toOrderResponse(o *orderv1.Order, restaurants map[uuid.UUID]*domain.Restaurant) *domain.OrderResponse {
 	r := &domain.OrderResponse{
-		ID:            o.GetId(),
-		RestaurantID:  o.GetRestaurantId(),
-		Number:        int(o.GetNumber()),
-		BusinessDate:  o.GetBusinessDate(),
-		Channel:       o.GetChannel(),
-		OrderType:     o.GetOrderType(),
-		Status:        o.GetStatus(),
-		PaymentMethod: o.GetPaymentMethod(),
-		PaymentStatus: o.GetPaymentStatus(),
-		CustomerName:  o.GetCustomerName(),
-		CustomerPhone: o.GetCustomerPhone(),
-		Note:          o.GetNote(),
-		DeviceID:      o.GetDeviceId(),
-		Subtotal:      rubles(o.GetSubtotal()),
-		Total:         rubles(o.GetTotal()),
-		Currency:      o.GetCurrency(),
-		CancelReason:  o.GetCancelReason(),
-		Lines:         make([]domain.OrderLineResponse, 0, len(o.GetLines())),
-		CreatedAt:     time.UnixMilli(o.GetCreatedAt()),
-		UpdatedAt:     time.UnixMilli(o.GetUpdatedAt()),
-		PreparingAt:   optionalMillis(o.GetPreparingAt()),
-		ReadyAt:       optionalMillis(o.GetReadyAt()),
-		CompletedAt:   optionalMillis(o.GetCompletedAt()),
-		CancelledAt:   optionalMillis(o.GetCancelledAt()),
+		ID:             o.GetId(),
+		RestaurantID:   o.GetRestaurantId(),
+		Number:         int(o.GetNumber()),
+		BusinessDate:   o.GetBusinessDate(),
+		Channel:        o.GetChannel(),
+		OrderType:      o.GetOrderType(),
+		Status:         o.GetStatus(),
+		PaymentMethod:  o.GetPaymentMethod(),
+		PaymentStatus:  o.GetPaymentStatus(),
+		CustomerName:   o.GetCustomerName(),
+		CustomerPhone:  o.GetCustomerPhone(),
+		Note:           o.GetNote(),
+		DeviceID:       o.GetDeviceId(),
+		Subtotal:       rubles(o.GetSubtotal()),
+		Discount:       rubles(o.GetDiscount()),
+		PointsRedeemed: int(o.GetPointsRedeemed()),
+		MemberID:       o.GetMemberId(),
+		Total:          rubles(o.GetTotal()),
+		Currency:       o.GetCurrency(),
+		CancelReason:   o.GetCancelReason(),
+		Lines:          make([]domain.OrderLineResponse, 0, len(o.GetLines())),
+		CreatedAt:      time.UnixMilli(o.GetCreatedAt()),
+		UpdatedAt:      time.UnixMilli(o.GetUpdatedAt()),
+		PreparingAt:    optionalMillis(o.GetPreparingAt()),
+		ReadyAt:        optionalMillis(o.GetReadyAt()),
+		CompletedAt:    optionalMillis(o.GetCompletedAt()),
+		CancelledAt:    optionalMillis(o.GetCancelledAt()),
 	}
 	if id, err := uuid.Parse(o.GetRestaurantId()); err == nil {
 		if rest, ok := restaurants[id]; ok {
@@ -422,6 +426,13 @@ func toOrderResponse(o *orderv1.Order, restaurants map[uuid.UUID]*domain.Restaur
 }
 
 func rubles(kopecks int64) float64 { return float64(kopecks) / 100 }
+
+func memberIDString(id *uuid.UUID) string {
+	if id == nil {
+		return ""
+	}
+	return id.String()
+}
 
 func optionalMillis(ms int64) *time.Time {
 	if ms == 0 {

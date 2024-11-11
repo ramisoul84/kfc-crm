@@ -18,6 +18,7 @@ type Config struct {
 	Notification NotificationConfig
 	UserAPI      UserAPIConfig
 	Order        OrderConfig
+	Loyalty      LoyaltyConfig
 	Kafka        KafkaConfig
 	MinIO        MinIOConfig
 }
@@ -110,6 +111,12 @@ type UserAPIConfig struct {
 
 // OrderConfig holds kfc-order service settings.
 type OrderConfig struct {
+	Address string
+	Timeout time.Duration
+}
+
+// LoyaltyConfig holds kfc-loyalty service settings.
+type LoyaltyConfig struct {
 	Address string
 	Timeout time.Duration
 }
@@ -213,6 +220,11 @@ func Load() (*Config, error) {
 		Order: OrderConfig{
 			Address: getEnv("ORDER_ADDRESS", "localhost:9103"),
 			Timeout: getEnvDuration("ORDER_TIMEOUT", 5*time.Second),
+		},
+
+		Loyalty: LoyaltyConfig{
+			Address: getEnv("LOYALTY_ADDRESS", "localhost:9104"),
+			Timeout: getEnvDuration("LOYALTY_TIMEOUT", 5*time.Second),
 		},
 
 		Kafka: KafkaConfig{

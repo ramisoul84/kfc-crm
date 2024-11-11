@@ -121,6 +121,10 @@ const (
 	// Order permissions
 	PermOrderRead   Permission = "order.read"
 	PermOrderCancel Permission = "order.cancel"
+
+	// Customer (loyalty member) permissions
+	PermCustomerRead   Permission = "customer.read"
+	PermCustomerAdjust Permission = "customer.adjust"
 )
 
 // ═══════════════════════════════════════════════════════════════════
@@ -140,6 +144,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuOverrideRead, PermMenuOverrideWrite, PermMenuOverrideDelete,
 		PermMenuPromotionRead, PermMenuPromotionWrite, PermMenuPromotionDelete,
 		PermOrderRead, PermOrderCancel,
+		PermCustomerRead, PermCustomerAdjust,
 	},
 	RoleRegionalManager: {
 		PermRegionRead,
@@ -152,6 +157,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuOverrideRead, PermMenuOverrideWrite, PermMenuOverrideDelete,
 		PermMenuPromotionRead, PermMenuPromotionWrite, PermMenuPromotionDelete,
 		PermOrderRead, PermOrderCancel,
+		PermCustomerRead, PermCustomerAdjust,
 	},
 	RoleRestaurantManager: {
 		PermRestaurantRead,
@@ -163,6 +169,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuOverrideRead, PermMenuOverrideWrite, PermMenuOverrideDelete,
 		PermMenuPromotionRead,
 		PermOrderRead, PermOrderCancel,
+		PermCustomerRead,
 	},
 	RoleShiftManager: {
 		PermRestaurantRead,

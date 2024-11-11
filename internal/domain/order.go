@@ -15,6 +15,7 @@ type OrderFilter struct {
 	Status       string
 	Channel      string
 	Number       int
+	MemberID     *uuid.UUID
 	From         *time.Time
 	To           *time.Time
 	Limit        int
@@ -60,6 +61,9 @@ type OrderResponse struct {
 	Note           string              `json:"note,omitempty"`
 	DeviceID       string              `json:"device_id,omitempty"`
 	Subtotal       float64             `json:"subtotal"`
+	Discount       float64             `json:"discount"`
+	PointsRedeemed int                 `json:"points_redeemed,omitempty"`
+	MemberID       string              `json:"member_id,omitempty"`
 	Total          float64             `json:"total"`
 	Currency       string              `json:"currency"`
 	CancelReason   string              `json:"cancel_reason,omitempty"`

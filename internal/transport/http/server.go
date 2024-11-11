@@ -37,6 +37,7 @@ type Server struct {
 	menuPromotionHandler     *handler.MenuPromotionHandler
 	effectiveMenuHandler     *handler.EffectiveMenuHandler
 	orderHandler             *handler.OrderHandler
+	customerHandler          *handler.CustomerHandler
 
 	tokenManager *jwt.TokenManager
 	tokenRepo    repository.TokenRepository
@@ -59,6 +60,7 @@ func NewServer(
 	menuPromotionHandler *handler.MenuPromotionHandler,
 	effectiveMenuHandler *handler.EffectiveMenuHandler,
 	orderHandler *handler.OrderHandler,
+	customerHandler *handler.CustomerHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -88,6 +90,7 @@ func NewServer(
 		menuPromotionHandler:     menuPromotionHandler,
 		effectiveMenuHandler:     effectiveMenuHandler,
 		orderHandler:             orderHandler,
+		customerHandler:          customerHandler,
 		tokenManager:             tokenManager,
 		tokenRepo:                tokenRepo,
 		userRepo:                 userRepo,
@@ -263,6 +266,14 @@ func (s *Server) registerRoutes() {
 	orders.Get("/", s.orderHandler.List)
 	orders.Get("/:id", s.orderHandler.GetByID)
 	orders.Post("/:id/cancel", s.orderHandler.Cancel)
+
+	// Loyalty customers
+	protected.Get("/loyalty/program", s.customerHandler.Program)
+	customers := protected.Group("/customers")
+	customers.Get("/", s.customerHandler.List)
+	customers.Get("/:id", s.customerHandler.GetByID)
+	customers.Get("/:id/points", s.customerHandler.Transactions)
+	customers.Post("/:id/points", s.customerHandler.Adjust)
 }
 
 // ═══════════════════════════════════════════════════════════════════

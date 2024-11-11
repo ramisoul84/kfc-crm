@@ -32,6 +32,7 @@ type App struct {
 	redis              *database.Redis
 	notificationClient client.NotificationClient
 	orderClient        client.OrderClient
+	loyaltyClient      client.LoyaltyClient
 	server             *httpTransport.Server
 	grpcServer         *grpcTransport.Transport
 	kafkaProducer      *kafka.Producer
@@ -128,6 +129,12 @@ func New(cfg *config.Config) (*App, error) {
 	}
 	log.Info("order client initialized", "address", cfg.Order.Address)
 
+	loyaltyClient, err := client.NewLoyaltyClient(&cfg.Loyalty)
+	if err != nil {
+		return nil, fmt.Errorf("loyalty client: %w", err)
+	}
+	log.Info("loyalty client initialized", "address", cfg.Loyalty.Address)
+
 	// Repositories
 	userRepo := repository.NewUserRepository(db.DB)
 	tokenRepo := repository.NewTokenRepository(redisClient.Client)
@@ -188,6 +195,7 @@ func New(cfg *config.Config) (*App, error) {
 	)
 
 	orderService := service.NewOrderService(orderClient, restaurantRepo, rbacService, log)
+	customerService := service.NewCustomerService(loyaltyClient, rbacService, log)
 
 	// Validator
 	v := validator.New()
@@ -210,6 +218,7 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("load timezone %q: %w", cfg.DB.Timezone, err)
 	}
 	orderHandler := handler.NewOrderHandler(orderService, v, businessLoc)
+	customerHandler := handler.NewCustomerHandler(customerService, v)
 
 	// Server
 	server := httpTransport.NewServer(
@@ -227,6 +236,7 @@ func New(cfg *config.Config) (*App, error) {
 		menuPromotionHandler,
 		effectiveMenuHandler,
 		orderHandler,
+		customerHandler,
 		tokenManager,
 		tokenRepo,
 		userRepo,
@@ -244,6 +254,7 @@ func New(cfg *config.Config) (*App, error) {
 		redis:              redisClient,
 		notificationClient: notificationClient,
 		orderClient:        orderClient,
+		loyaltyClient:      loyaltyClient,
 		server:             server,
 		grpcServer:         grpcServer,
 		kafkaProducer:      kafkaProducer,
@@ -304,6 +315,9 @@ func (a *App) Shutdown(ctx context.Context) error {
 	}
 	if a.orderClient != nil {
 		_ = a.orderClient.Close()
+	}
+	if a.loyaltyClient != nil {
+		_ = a.loyaltyClient.Close()
 	}
 	if a.redis != nil {
 		_ = a.redis.Close()

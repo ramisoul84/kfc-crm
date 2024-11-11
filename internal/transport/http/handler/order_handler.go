@@ -48,6 +48,9 @@ func (h *OrderHandler) List(c *fiber.Ctx) error {
 	if filter.RestaurantID, err = optionalUUIDQuery(c, "restaurant_id"); err != nil {
 		return response.Error(c, err)
 	}
+	if filter.MemberID, err = optionalUUIDQuery(c, "member_id"); err != nil {
+		return response.Error(c, err)
+	}
 	if filter.From, err = h.timeQuery(c, "from", false); err != nil {
 		return response.Error(c, err)
 	}
