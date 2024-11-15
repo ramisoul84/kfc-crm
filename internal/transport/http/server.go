@@ -35,6 +35,7 @@ type Server struct {
 	menuItemVariationHandler *handler.MenuItemVariationHandler
 	menuItemOverrideHandler  *handler.MenuItemOverrideHandler
 	menuPromotionHandler     *handler.MenuPromotionHandler
+	effectiveMenuHandler     *handler.EffectiveMenuHandler
 
 	tokenManager *jwt.TokenManager
 	tokenRepo    repository.TokenRepository
@@ -55,6 +56,7 @@ func NewServer(
 	menuItemVariationHandler *handler.MenuItemVariationHandler,
 	menuItemOverrideHandler *handler.MenuItemOverrideHandler,
 	menuPromotionHandler *handler.MenuPromotionHandler,
+	effectiveMenuHandler *handler.EffectiveMenuHandler,
 	tokenManager *jwt.TokenManager,
 	tokenRepo repository.TokenRepository,
 	userRepo repository.UserRepository,
@@ -82,6 +84,7 @@ func NewServer(
 		menuItemVariationHandler: menuItemVariationHandler,
 		menuItemOverrideHandler:  menuItemOverrideHandler,
 		menuPromotionHandler:     menuPromotionHandler,
+		effectiveMenuHandler:     effectiveMenuHandler,
 		tokenManager:             tokenManager,
 		tokenRepo:                tokenRepo,
 		userRepo:                 userRepo,
@@ -236,6 +239,10 @@ func (s *Server) registerRoutes() {
 	promotions.Get("/:id", s.menuPromotionHandler.GetByID)
 	promotions.Put("/:id", s.menuPromotionHandler.Update)
 	promotions.Delete("/:id", s.menuPromotionHandler.Delete)
+
+	// Effective menu for a restaurant
+	protected.Get("/restaurants/:restaurant_id/menu",
+		s.effectiveMenuHandler.Get)
 }
 
 // ═══════════════════════════════════════════════════════════════════
