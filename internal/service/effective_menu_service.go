@@ -14,7 +14,14 @@ import (
 
 // EffectiveMenuService computes the effective menu for a restaurant.
 type EffectiveMenuService interface {
+	// GetEffectiveMenu is the actor-scoped entry point (HTTP, humans).
+	// Performs RBAC + scope checks before computing.
 	GetEffectiveMenu(ctx context.Context, actor *domain.User, restaurantID uuid.UUID) (*domain.EffectiveMenu, error)
+
+	// GetEffectiveMenuInternal is the service-scoped entry point (gRPC,
+	// internal callers such as kfc-userapi). No RBAC — access control is
+	// enforced by the transport layer (service token / mTLS).
+	GetEffectiveMenuInternal(ctx context.Context, restaurantID uuid.UUID) (*domain.EffectiveMenu, error)
 }
 
 type effectiveMenuService struct {
@@ -51,13 +58,7 @@ func (s *effectiveMenuService) GetEffectiveMenu(
 	actor *domain.User,
 	restaurantID uuid.UUID,
 ) (*domain.EffectiveMenu, error) {
-	start := time.Now()
 	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
-
-	log.Debug("computing effective menu",
-		"actor_id", actor.ID,
-		"restaurant_id", restaurantID,
-	)
 
 	// 1. Permission
 	if err := s.rbacService.CheckPermission(actor, domain.PermMenuItemRead); err != nil {
@@ -77,6 +78,27 @@ func (s *effectiveMenuService) GetEffectiveMenu(
 		)
 		return nil, err
 	}
+
+	return s.computeEffectiveMenu(ctx, restaurantID)
+}
+
+func (s *effectiveMenuService) GetEffectiveMenuInternal(
+	ctx context.Context,
+	restaurantID uuid.UUID,
+) (*domain.EffectiveMenu, error) {
+	return s.computeEffectiveMenu(ctx, restaurantID)
+}
+
+func (s *effectiveMenuService) computeEffectiveMenu(
+	ctx context.Context,
+	restaurantID uuid.UUID,
+) (*domain.EffectiveMenu, error) {
+	start := time.Now()
+	log := s.logger.WithRequestID(ctxutil.GetRequestID(ctx))
+
+	log.Debug("computing effective menu",
+		"restaurant_id", restaurantID,
+	)
 
 	// 3. Load restaurant (need region for promotion scoping)
 	restaurant, err := s.restaurantRepo.GetByID(ctx, restaurantID)
@@ -156,7 +178,6 @@ func (s *effectiveMenuService) GetEffectiveMenu(
 	)
 
 	log.Info("effective menu computed",
-		"actor_id", actor.ID,
 		"restaurant_id", restaurantID,
 		"categories", len(effective.Categories),
 		"duration_ms", time.Since(start).Milliseconds(),
