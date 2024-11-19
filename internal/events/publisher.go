@@ -4,27 +4,35 @@ import (
 	"context"
 	"time"
 
-	"github.com/ramisoul84/kfc-crm/pkg/kafka"
+	"github.com/jmoiron/sqlx"
+
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
+	"github.com/ramisoul84/kfc-crm/pkg/outbox"
 )
 
-// Publisher publishes domain events to Kafka.
+// Publisher records domain events in the outbox; pkg/outbox's relay
+// delivers them to Kafka. Writing to Postgres instead of Kafka directly
+// means a Kafka outage delays menu updates instead of losing them.
 type Publisher struct {
-	producer *kafka.Producer
-	logger   *logger.Logger
+	db     *sqlx.DB
+	notify func()
+	logger *logger.Logger
 }
 
-func NewPublisher(producer *kafka.Producer, log *logger.Logger) *Publisher {
-	return &Publisher{producer: producer, logger: log}
+// NewPublisher builds a publisher. notify wakes the relay; may be nil.
+func NewPublisher(db *sqlx.DB, notify func(), log *logger.Logger) *Publisher {
+	if notify == nil {
+		notify = func() {}
+	}
+	return &Publisher{db: db, notify: notify, logger: log}
 }
 
-// PublishMenuUpdated emits a menu-change event. Call this after any
+// PublishMenuUpdated records a menu-change event. Call it after any
 // successful mutation to a menu entity.
 //
-// The event is best-effort: errors are logged but not returned, because
-// the DB write already succeeded and rolling it back just because Kafka
-// was briefly unavailable would be worse. The 24h TTL on userapi's menu
-// cache is the safety net.
+// Errors are logged, not returned: the menu change itself is already
+// committed. userapi's cache also expires on its own (bounded TTL and
+// promotion boundaries), so a missed event means a short delay at worst.
 //
 // restaurantID = "" means "all restaurants" — used for global menu
 // changes (categories, items, variations). Overrides and restaurant-
@@ -35,7 +43,7 @@ func (p *Publisher) PublishMenuUpdated(
 	regionID string,
 	reason string,
 ) {
-	if p == nil || p.producer == nil {
+	if p == nil {
 		return
 	}
 
@@ -46,19 +54,20 @@ func (p *Publisher) PublishMenuUpdated(
 		OccurredAt:   time.Now().UTC(),
 	}
 
-	// Partition key. Empty restaurantID becomes "all" inside Publish.
-	key := restaurantID
-
-	if err := p.producer.Publish(ctx, TopicMenuUpdated, key, evt); err != nil {
-		p.logger.Error("failed to publish menu update event",
+	// Detached from the request: a client disconnecting right after the
+	// change must not drop its event.
+	ctx = context.WithoutCancel(ctx)
+	if err := outbox.Insert(ctx, p.db, TopicMenuUpdated, restaurantID, evt); err != nil {
+		p.logger.Error("failed to record menu update event",
 			"restaurant_id", restaurantID,
 			"reason", reason,
 			"error", err,
 		)
 		return
 	}
+	p.notify()
 
-	p.logger.Info("menu update event published",
+	p.logger.Info("menu update event recorded",
 		"restaurant_id", restaurantID,
 		"reason", reason,
 	)

@@ -282,19 +282,8 @@ func (s *menuCategoryService) SetPhoto(
 		return nil, domain.NewInternalError(err)
 	}
 
-	// 4. Delete the previous photo, if any. Best-effort — if this fails,
-	//    we keep the new one and log the orphan.
-	if category.ImageKey != "" && category.ImageKey != key {
-		if err := s.storage.Delete(ctx, category.ImageKey); err != nil {
-			log.Warn("failed to delete old category photo",
-				"category_id", id,
-				"key", category.ImageKey,
-				"error", err,
-			)
-		}
-	}
-
-	// 5. Persist the new URL and key.
+	// 4. Persist the new URL and key before touching the old object, so
+	//    a failed update never leaves the category pointing at nothing.
 	if err := s.categoryRepo.SetImage(ctx, id, url, key); err != nil {
 		// Roll back the upload to avoid an orphaned object.
 		if delErr := s.storage.Delete(ctx, key); delErr != nil {
@@ -310,6 +299,18 @@ func (s *menuCategoryService) SetPhoto(
 			"error", err,
 		)
 		return nil, err
+	}
+
+	// 5. The previous photo is now unreferenced. Best-effort delete — a
+	//    failure leaves an orphaned object, not a broken menu.
+	if category.ImageKey != "" && category.ImageKey != key {
+		if err := s.storage.Delete(ctx, category.ImageKey); err != nil {
+			log.Warn("failed to delete old category photo",
+				"category_id", id,
+				"key", category.ImageKey,
+				"error", err,
+			)
+		}
 	}
 
 	// 6. Update the in-memory entity so ToResponse returns the new URL.
@@ -348,8 +349,10 @@ func (s *menuCategoryService) RemovePhoto(
 		return nil, err
 	}
 
-	// Delete the object if we have a key. Best-effort — the DB row
-	// being cleared matters more than the storage object.
+	// Clear the reference first, then delete the object (best-effort).
+	if err := s.categoryRepo.ClearImage(ctx, id); err != nil {
+		return nil, err
+	}
 	if category.ImageKey != "" {
 		if err := s.storage.Delete(ctx, category.ImageKey); err != nil {
 			log.Warn("failed to delete category photo",
@@ -358,10 +361,6 @@ func (s *menuCategoryService) RemovePhoto(
 				"error", err,
 			)
 		}
-	}
-
-	if err := s.categoryRepo.ClearImage(ctx, id); err != nil {
-		return nil, err
 	}
 
 	category.ImageURL = ""

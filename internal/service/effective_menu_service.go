@@ -177,6 +177,14 @@ func (s *effectiveMenuService) computeEffectiveMenu(
 		promotionByItem,
 	)
 
+	// 7. When does this menu change on its own? (promotion start/end)
+	next, err := s.effectiveRepo.NextPromotionChange(ctx, restaurantID, restaurant.RegionID, effective.GeneratedAt)
+	if err != nil {
+		log.Error("effective menu: next promotion change", "error", err)
+		return nil, err
+	}
+	effective.ValidUntil = next
+
 	log.Info("effective menu computed",
 		"restaurant_id", restaurantID,
 		"categories", len(effective.Categories),

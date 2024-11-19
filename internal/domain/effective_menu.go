@@ -12,6 +12,10 @@ type EffectiveMenu struct {
 	RestaurantID uuid.UUID            `json:"restaurant_id"`
 	Categories   []*EffectiveCategory `json:"categories"`
 	GeneratedAt  time.Time            `json:"generated_at"`
+	// ValidUntil is when this menu changes by itself (a promotion starts
+	// or ends). Caches must not keep it past this point. Nil = no change
+	// scheduled.
+	ValidUntil *time.Time `json:"valid_until,omitempty"`
 }
 
 // EffectiveCategory is a category with its effective items.

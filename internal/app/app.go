@@ -20,6 +20,7 @@ import (
 	"github.com/ramisoul84/kfc-crm/pkg/kafka"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
 	"github.com/ramisoul84/kfc-crm/pkg/migrate"
+	"github.com/ramisoul84/kfc-crm/pkg/outbox"
 	"github.com/ramisoul84/kfc-crm/pkg/storage"
 	"github.com/ramisoul84/kfc-crm/pkg/validator"
 )
@@ -36,6 +37,7 @@ type App struct {
 	server             *httpTransport.Server
 	grpcServer         *grpcTransport.Transport
 	kafkaProducer      *kafka.Producer
+	relay              *outbox.Relay
 }
 
 // New creates and wires the application.
@@ -53,18 +55,6 @@ func New(cfg *config.Config) (*App, error) {
 		"version", cfg.App.Version,
 		"environment", cfg.App.Environment,
 	)
-
-	// Kafka
-	var kafkaProducer *kafka.Producer
-	var eventsPublisher *events.Publisher
-
-	if len(cfg.Kafka.Brokers) > 0 {
-		kafkaProducer = kafka.NewProducer(cfg.Kafka.Brokers, log)
-		eventsPublisher = events.NewPublisher(kafkaProducer, log)
-		log.Info("kafka producer initialized", "brokers", cfg.Kafka.Brokers)
-	} else {
-		log.Warn("kafka disabled; menu cache invalidation will not work")
-	}
 
 	// Postgres
 	db, err := database.NewPostgres(&cfg.DB, cfg.DSN())
@@ -90,6 +80,22 @@ func New(cfg *config.Config) (*App, error) {
 		"endpoint", cfg.MinIO.Endpoint,
 		"bucket", cfg.MinIO.Bucket,
 	)
+
+	// Kafka via the outbox: menu events are recorded in Postgres and
+	// relayed, so a Kafka outage delays cache invalidation instead of
+	// losing it.
+	var kafkaProducer *kafka.Producer
+	var relay *outbox.Relay
+	notify := func() {}
+	if len(cfg.Kafka.Brokers) > 0 {
+		kafkaProducer = kafka.NewProducer(cfg.Kafka.Brokers, log)
+		relay = outbox.NewRelay(db.DB, kafkaProducer, outboxLockID, log)
+		notify = relay.Notify
+		log.Info("outbox relay initialized", "brokers", cfg.Kafka.Brokers)
+	} else {
+		log.Warn("kafka disabled; menu events accumulate in the outbox until it is enabled")
+	}
+	eventsPublisher := events.NewPublisher(db.DB, notify, log)
 
 	// Redis
 	redisClient, err := database.NewRedis(&cfg.Redis)
@@ -258,6 +264,7 @@ func New(cfg *config.Config) (*App, error) {
 		server:             server,
 		grpcServer:         grpcServer,
 		kafkaProducer:      kafkaProducer,
+		relay:              relay,
 	}, nil
 }
 
@@ -266,6 +273,10 @@ func (a *App) Start(ctx context.Context) error {
 	a.logger.Info("starting transports")
 
 	errCh := make(chan error, 2)
+
+	if a.relay != nil {
+		go a.relay.Run(ctx)
+	}
 
 	go func() {
 		if err := a.server.Start(); err != nil {
@@ -378,3 +389,6 @@ func buildUserAPIClient(cfg *config.Config, log *logger.Logger) (client.UserAPIC
 	log.Info("userapi client initialized", "address", cfg.UserAPI.Address)
 	return uc, nil
 }
+
+// outboxLockID elects one outbox relay among CRM replicas.
+const outboxLockID = 7_310_455_200

@@ -3,6 +3,7 @@ package grpc
 import (
 	menuv1 "github.com/ramisoul84/kfc-crm/gen/menu/v1"
 	"github.com/ramisoul84/kfc-crm/internal/domain"
+	"time"
 )
 
 // toProtoMenu converts a domain EffectiveMenu to its proto representation.
@@ -22,6 +23,7 @@ func toProtoMenu(m *domain.EffectiveMenu) *menuv1.GetEffectiveMenuResponse {
 		Currency:      "RUB",
 		Categories:    cats,
 		SchemaVersion: 1,
+		ValidUntil:    validUntil(m.ValidUntil),
 	}
 }
 
@@ -100,4 +102,11 @@ func toProtoVariation(v *domain.EffectiveVariation) *menuv1.Variation {
 		IsDefault:  v.IsDefault,
 		SortOrder:  int32(v.SortOrder),
 	}
+}
+
+func validUntil(t *time.Time) int64 {
+	if t == nil {
+		return 0
+	}
+	return t.Unix()
 }

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -27,6 +28,11 @@ type EffectiveMenuRepository interface {
 
 	// LoadActivePromotions returns promotions active for a restaurant at the given time.
 	LoadActivePromotions(ctx context.Context, restaurantID, regionID uuid.UUID) ([]*domain.Promotion, error)
+
+	// NextPromotionChange returns the next moment a promotion applying to
+	// the restaurant starts or ends, i.e. when its prices change without
+	// anyone editing anything. Nil when nothing is scheduled.
+	NextPromotionChange(ctx context.Context, restaurantID, regionID uuid.UUID, after time.Time) (*time.Time, error)
 }
 
 type effectiveMenuRepo struct {
@@ -113,6 +119,35 @@ func (r *effectiveMenuRepo) LoadOverridesForRestaurant(ctx context.Context, rest
 		return nil, fmt.Errorf("load overrides: %w", err)
 	}
 	return overrides, nil
+}
+
+func (r *effectiveMenuRepo) NextPromotionChange(
+	ctx context.Context,
+	restaurantID, regionID uuid.UUID,
+	after time.Time,
+) (*time.Time, error) {
+	var next sql.NullTime
+	err := r.db.GetContext(ctx, &next, `
+		SELECT MIN(t) FROM (
+			SELECT starts_at AS t FROM menu_promotions
+			WHERE deleted_at IS NULL AND is_active = true AND starts_at > $1
+			  AND (scope = 'global'
+			       OR (scope = 'region' AND region_id = $2)
+			       OR (scope = 'restaurant' AND restaurant_id = $3))
+			UNION ALL
+			SELECT ends_at AS t FROM menu_promotions
+			WHERE deleted_at IS NULL AND is_active = true AND ends_at > $1
+			  AND (scope = 'global'
+			       OR (scope = 'region' AND region_id = $2)
+			       OR (scope = 'restaurant' AND restaurant_id = $3))
+		) changes`, after, regionID, restaurantID)
+	if err != nil {
+		return nil, fmt.Errorf("next promotion change: %w", err)
+	}
+	if !next.Valid {
+		return nil, nil
+	}
+	return &next.Time, nil
 }
 
 func (r *effectiveMenuRepo) LoadActivePromotions(ctx context.Context, restaurantID, regionID uuid.UUID) ([]*domain.Promotion, error) {

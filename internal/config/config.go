@@ -232,12 +232,16 @@ func Load() (*Config, error) {
 		},
 
 		MinIO: MinIOConfig{
-			Endpoint:       getEnv("MINIO_ENDPOINT", "localhost:9000"),
-			AccessKey:      getEnv("MINIO_ACCESS_KEY", "minioadmin"),
-			SecretKey:      getEnv("MINIO_SECRET_KEY", "minioadmin"),
-			Bucket:         getEnv("MINIO_BUCKET", "kfc-media"),
-			UseSSL:         getEnvBool("MINIO_USE_SSL", false),
-			PublicURL:      getEnv("MINIO_PUBLIC_URL", "http://localhost:9000/kfc-media"),
+			Endpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
+			AccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
+			SecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
+			Bucket:    getEnv("MINIO_BUCKET", "kfc-media"),
+			UseSSL:    getEnvBool("MINIO_USE_SSL", false),
+			// Relative by default: every web app serves /media/* from the
+			// bucket (nginx in Docker, the dev proxy locally), so stored
+			// URLs work on any domain. Set an absolute CDN URL to serve
+			// new uploads from a CDN instead.
+			PublicURL:      strings.TrimRight(getEnv("MINIO_PUBLIC_URL", "/media"), "/"),
 			MaxUploadBytes: int64(getEnvInt("MINIO_MAX_UPLOAD_BYTES", 5*1024*1024)), // 5 MB
 		},
 	}

@@ -307,23 +307,27 @@ func (s *menuItemService) SetPhoto(
 		return nil, domain.NewInternalError(err)
 	}
 
-	// Delete the old photo if one existed.
-	if item.ImageKey != "" {
-		if err := s.storage.Delete(ctx, item.ImageKey); err != nil {
-			// Non-fatal: orphaned object, log and continue.
-			log.Warn("failed to delete old item photo", "key", item.ImageKey, "error", err)
-		}
+	// Commit the new image before touching the old one: if the DB update
+	// fails, the item still points at a photo that exists.
+	if err := s.itemRepo.SetImage(ctx, id, url, key); err != nil {
+		_ = s.storage.Delete(ctx, key) // don't leave the new upload orphaned
+		return nil, err
 	}
 
-	if err := s.itemRepo.SetImage(ctx, id, url, key); err != nil {
-		// Try to clean up the new object since the DB update failed.
-		_ = s.storage.Delete(ctx, key)
-		return nil, err
+	// Only now is the old photo unreferenced. Best-effort: a failure
+	// leaves an orphaned object, not a broken menu.
+	if item.ImageKey != "" && item.ImageKey != key {
+		if err := s.storage.Delete(ctx, item.ImageKey); err != nil {
+			log.Warn("failed to delete old item photo", "key", item.ImageKey, "error", err)
+		}
 	}
 
 	item.ImageURL = url
 	item.ImageKey = key
 	log.Info("menu item photo updated", "item_id", id, "actor_id", actor.ID)
+
+	// The photo is part of the menu kiosks and the website render.
+	s.publishMenuChanged(ctx, item.CategoryID, "item.photo")
 	return item.ToResponse(), nil
 }
 
@@ -343,18 +347,20 @@ func (s *menuItemService) RemovePhoto(
 		return nil, err
 	}
 
+	// Clear the reference first, then delete the object.
+	if err := s.itemRepo.ClearImage(ctx, id); err != nil {
+		return nil, err
+	}
 	if item.ImageKey != "" {
 		if err := s.storage.Delete(ctx, item.ImageKey); err != nil {
 			log.Warn("failed to delete item photo", "key", item.ImageKey, "error", err)
 		}
 	}
 
-	if err := s.itemRepo.ClearImage(ctx, id); err != nil {
-		return nil, err
-	}
-
 	item.ImageURL = ""
 	item.ImageKey = ""
 	log.Info("menu item photo removed", "item_id", id, "actor_id", actor.ID)
+
+	s.publishMenuChanged(ctx, item.CategoryID, "item.photo")
 	return item.ToResponse(), nil
 }
