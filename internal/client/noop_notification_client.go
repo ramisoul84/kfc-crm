@@ -26,22 +26,6 @@ func (c *NoopNotificationClient) SendWelcomeEmail(ctx context.Context, req *Welc
 	return nil
 }
 
-func (c *NoopNotificationClient) SendPasswordResetEmail(ctx context.Context, req *PasswordResetEmail) error {
-	c.logger.Warn("notification (no-op): password reset email not sent",
-		"email", req.Email,
-		"new_password", req.NewPassword,
-	)
-	return nil
-}
-
-func (c *NoopNotificationClient) SendEmail(ctx context.Context, req *GenericEmail) error {
-	c.logger.Warn("notification (no-op): generic email not sent",
-		"to", req.To,
-		"subject", req.Subject,
-	)
-	return nil
-}
-
 func (c *NoopNotificationClient) Close() error {
 	return nil
 }

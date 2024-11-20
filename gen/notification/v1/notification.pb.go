@@ -174,270 +174,6 @@ func (x *SendWelcomeEmailResponse) GetSentAt() *timestamppb.Timestamp {
 	return nil
 }
 
-type SendPasswordResetEmailRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	To            string                 `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	NewPassword   string                 `protobuf:"bytes,3,opt,name=new_password,json=newPassword,proto3" json:"new_password,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SendPasswordResetEmailRequest) Reset() {
-	*x = SendPasswordResetEmailRequest{}
-	mi := &file_proto_notification_v1_notification_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SendPasswordResetEmailRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SendPasswordResetEmailRequest) ProtoMessage() {}
-
-func (x *SendPasswordResetEmailRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notification_v1_notification_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SendPasswordResetEmailRequest.ProtoReflect.Descriptor instead.
-func (*SendPasswordResetEmailRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notification_v1_notification_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *SendPasswordResetEmailRequest) GetTo() string {
-	if x != nil {
-		return x.To
-	}
-	return ""
-}
-
-func (x *SendPasswordResetEmailRequest) GetEmail() string {
-	if x != nil {
-		return x.Email
-	}
-	return ""
-}
-
-func (x *SendPasswordResetEmailRequest) GetNewPassword() string {
-	if x != nil {
-		return x.NewPassword
-	}
-	return ""
-}
-
-type SendPasswordResetEmailResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Success        bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message        string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	NotificationId string                 `protobuf:"bytes,3,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	SentAt         *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *SendPasswordResetEmailResponse) Reset() {
-	*x = SendPasswordResetEmailResponse{}
-	mi := &file_proto_notification_v1_notification_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SendPasswordResetEmailResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SendPasswordResetEmailResponse) ProtoMessage() {}
-
-func (x *SendPasswordResetEmailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notification_v1_notification_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SendPasswordResetEmailResponse.ProtoReflect.Descriptor instead.
-func (*SendPasswordResetEmailResponse) Descriptor() ([]byte, []int) {
-	return file_proto_notification_v1_notification_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *SendPasswordResetEmailResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *SendPasswordResetEmailResponse) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *SendPasswordResetEmailResponse) GetNotificationId() string {
-	if x != nil {
-		return x.NotificationId
-	}
-	return ""
-}
-
-func (x *SendPasswordResetEmailResponse) GetSentAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.SentAt
-	}
-	return nil
-}
-
-type SendEmailRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	To            string                 `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
-	Subject       string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
-	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
-	IsHtml        bool                   `protobuf:"varint,4,opt,name=is_html,json=isHtml,proto3" json:"is_html,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SendEmailRequest) Reset() {
-	*x = SendEmailRequest{}
-	mi := &file_proto_notification_v1_notification_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SendEmailRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SendEmailRequest) ProtoMessage() {}
-
-func (x *SendEmailRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notification_v1_notification_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SendEmailRequest.ProtoReflect.Descriptor instead.
-func (*SendEmailRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notification_v1_notification_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *SendEmailRequest) GetTo() string {
-	if x != nil {
-		return x.To
-	}
-	return ""
-}
-
-func (x *SendEmailRequest) GetSubject() string {
-	if x != nil {
-		return x.Subject
-	}
-	return ""
-}
-
-func (x *SendEmailRequest) GetBody() string {
-	if x != nil {
-		return x.Body
-	}
-	return ""
-}
-
-func (x *SendEmailRequest) GetIsHtml() bool {
-	if x != nil {
-		return x.IsHtml
-	}
-	return false
-}
-
-type SendEmailResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Success        bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message        string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	NotificationId string                 `protobuf:"bytes,3,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	SentAt         *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *SendEmailResponse) Reset() {
-	*x = SendEmailResponse{}
-	mi := &file_proto_notification_v1_notification_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SendEmailResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SendEmailResponse) ProtoMessage() {}
-
-func (x *SendEmailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notification_v1_notification_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SendEmailResponse.ProtoReflect.Descriptor instead.
-func (*SendEmailResponse) Descriptor() ([]byte, []int) {
-	return file_proto_notification_v1_notification_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *SendEmailResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *SendEmailResponse) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *SendEmailResponse) GetNotificationId() string {
-	if x != nil {
-		return x.NotificationId
-	}
-	return ""
-}
-
-func (x *SendEmailResponse) GetSentAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.SentAt
-	}
-	return nil
-}
-
 var File_proto_notification_v1_notification_proto protoreflect.FileDescriptor
 
 const file_proto_notification_v1_notification_proto_rawDesc = "" +
@@ -454,30 +190,9 @@ const file_proto_notification_v1_notification_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12'\n" +
 	"\x0fnotification_id\x18\x03 \x01(\tR\x0enotificationId\x123\n" +
-	"\asent_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"h\n" +
-	"\x1dSendPasswordResetEmailRequest\x12\x0e\n" +
-	"\x02to\x18\x01 \x01(\tR\x02to\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\x12!\n" +
-	"\fnew_password\x18\x03 \x01(\tR\vnewPassword\"\xb2\x01\n" +
-	"\x1eSendPasswordResetEmailResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\x12'\n" +
-	"\x0fnotification_id\x18\x03 \x01(\tR\x0enotificationId\x123\n" +
-	"\asent_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"i\n" +
-	"\x10SendEmailRequest\x12\x0e\n" +
-	"\x02to\x18\x01 \x01(\tR\x02to\x12\x18\n" +
-	"\asubject\x18\x02 \x01(\tR\asubject\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body\x12\x17\n" +
-	"\ais_html\x18\x04 \x01(\bR\x06isHtml\"\xa5\x01\n" +
-	"\x11SendEmailResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\x12'\n" +
-	"\x0fnotification_id\x18\x03 \x01(\tR\x0enotificationId\x123\n" +
-	"\asent_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt2\xcd\x02\n" +
+	"\asent_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt2~\n" +
 	"\x13NotificationService\x12g\n" +
-	"\x10SendWelcomeEmail\x12(.notification.v1.SendWelcomeEmailRequest\x1a).notification.v1.SendWelcomeEmailResponse\x12y\n" +
-	"\x16SendPasswordResetEmail\x12..notification.v1.SendPasswordResetEmailRequest\x1a/.notification.v1.SendPasswordResetEmailResponse\x12R\n" +
-	"\tSendEmail\x12!.notification.v1.SendEmailRequest\x1a\".notification.v1.SendEmailResponseBBZ@github.com/ramisoul84/kfc-crm/gen/notification/v1;notificationv1b\x06proto3"
+	"\x10SendWelcomeEmail\x12(.notification.v1.SendWelcomeEmailRequest\x1a).notification.v1.SendWelcomeEmailResponseBBZ@github.com/ramisoul84/kfc-crm/gen/notification/v1;notificationv1b\x06proto3"
 
 var (
 	file_proto_notification_v1_notification_proto_rawDescOnce sync.Once
@@ -491,31 +206,21 @@ func file_proto_notification_v1_notification_proto_rawDescGZIP() []byte {
 	return file_proto_notification_v1_notification_proto_rawDescData
 }
 
-var file_proto_notification_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_proto_notification_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_proto_notification_v1_notification_proto_goTypes = []any{
-	(*SendWelcomeEmailRequest)(nil),        // 0: notification.v1.SendWelcomeEmailRequest
-	(*SendWelcomeEmailResponse)(nil),       // 1: notification.v1.SendWelcomeEmailResponse
-	(*SendPasswordResetEmailRequest)(nil),  // 2: notification.v1.SendPasswordResetEmailRequest
-	(*SendPasswordResetEmailResponse)(nil), // 3: notification.v1.SendPasswordResetEmailResponse
-	(*SendEmailRequest)(nil),               // 4: notification.v1.SendEmailRequest
-	(*SendEmailResponse)(nil),              // 5: notification.v1.SendEmailResponse
-	(*timestamppb.Timestamp)(nil),          // 6: google.protobuf.Timestamp
+	(*SendWelcomeEmailRequest)(nil),  // 0: notification.v1.SendWelcomeEmailRequest
+	(*SendWelcomeEmailResponse)(nil), // 1: notification.v1.SendWelcomeEmailResponse
+	(*timestamppb.Timestamp)(nil),    // 2: google.protobuf.Timestamp
 }
 var file_proto_notification_v1_notification_proto_depIdxs = []int32{
-	6, // 0: notification.v1.SendWelcomeEmailResponse.sent_at:type_name -> google.protobuf.Timestamp
-	6, // 1: notification.v1.SendPasswordResetEmailResponse.sent_at:type_name -> google.protobuf.Timestamp
-	6, // 2: notification.v1.SendEmailResponse.sent_at:type_name -> google.protobuf.Timestamp
-	0, // 3: notification.v1.NotificationService.SendWelcomeEmail:input_type -> notification.v1.SendWelcomeEmailRequest
-	2, // 4: notification.v1.NotificationService.SendPasswordResetEmail:input_type -> notification.v1.SendPasswordResetEmailRequest
-	4, // 5: notification.v1.NotificationService.SendEmail:input_type -> notification.v1.SendEmailRequest
-	1, // 6: notification.v1.NotificationService.SendWelcomeEmail:output_type -> notification.v1.SendWelcomeEmailResponse
-	3, // 7: notification.v1.NotificationService.SendPasswordResetEmail:output_type -> notification.v1.SendPasswordResetEmailResponse
-	5, // 8: notification.v1.NotificationService.SendEmail:output_type -> notification.v1.SendEmailResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2, // 0: notification.v1.SendWelcomeEmailResponse.sent_at:type_name -> google.protobuf.Timestamp
+	0, // 1: notification.v1.NotificationService.SendWelcomeEmail:input_type -> notification.v1.SendWelcomeEmailRequest
+	1, // 2: notification.v1.NotificationService.SendWelcomeEmail:output_type -> notification.v1.SendWelcomeEmailResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_proto_notification_v1_notification_proto_init() }
@@ -529,7 +234,7 @@ func file_proto_notification_v1_notification_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_notification_v1_notification_proto_rawDesc), len(file_proto_notification_v1_notification_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

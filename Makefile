@@ -6,10 +6,9 @@ BINARY_NAME=crm
 
 help:
 	@echo "Available targets:"
-	@echo "  run     Run the server"
-	@echo "  build   Build binary to bin/crm"
-	@echo "  test    Run tests"
-	@echo "  clean   Remove build artifacts"
+	@echo "  run		Run the server"
+	@echo "  build		Build binary to bin/crm"
+	@echo "  proto-gen	Generate protobuf files"
 
 # Run the application
 run:
@@ -21,6 +20,7 @@ build:
 	@go build -o bin/$(BINARY_NAME) cmd/crm/main.go
 	@echo "built bin/crm"
 
+# Generate the protobuf files
 proto-gen:
 	@echo "Generating protobuf files..."
 	@find proto -name '*.proto' -print0 | xargs -0 -n1 \
