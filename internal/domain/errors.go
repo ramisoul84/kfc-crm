@@ -19,6 +19,7 @@ const (
 	ErrorTypeAuthorization  ErrorType = "authorization"
 	ErrorTypeNotFound       ErrorType = "not_found"
 	ErrorTypeConflict       ErrorType = "conflict"
+	ErrorTypeTooMany        ErrorType = "too_many_requests"
 	ErrorTypeInternal       ErrorType = "internal"
 )
 
@@ -35,6 +36,8 @@ func (t ErrorType) HTTPStatus() int {
 		return http.StatusNotFound
 	case ErrorTypeConflict:
 		return http.StatusConflict
+	case ErrorTypeTooMany:
+		return http.StatusTooManyRequests
 	default:
 		return http.StatusInternalServerError
 	}
@@ -120,6 +123,15 @@ func NewNotFoundError(message string) *AppError {
 }
 
 // NewConflictError creates a 409 conflict error.
+// NewTooManyRequestsError creates a 429 rate-limit error.
+func NewTooManyRequestsError(message string) *AppError {
+	return &AppError{
+		Type:       ErrorTypeTooMany,
+		Message:    message,
+		StatusCode: http.StatusTooManyRequests,
+	}
+}
+
 func NewConflictError(message string) *AppError {
 	return &AppError{
 		Type:       ErrorTypeConflict,

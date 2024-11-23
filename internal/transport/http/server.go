@@ -7,12 +7,14 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/ramisoul84/kfc-crm/internal/config"
 	"github.com/ramisoul84/kfc-crm/internal/repository"
 	"github.com/ramisoul84/kfc-crm/internal/transport/http/handler"
 	"github.com/ramisoul84/kfc-crm/internal/transport/http/middleware"
+	"github.com/ramisoul84/kfc-crm/internal/transport/http/response"
 	"github.com/ramisoul84/kfc-crm/pkg/ctxutil"
 	"github.com/ramisoul84/kfc-crm/pkg/jwt"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
@@ -72,6 +74,16 @@ func NewServer(
 		IdleTimeout:           cfg.HTTP.IdleTimeout,
 		DisableStartupMessage: true,
 		ErrorHandler:          errorHandler(log),
+		// Photo uploads are capped at 5 MB in the handler; leave room for
+		// the multipart envelope. Fiber's default is 4 MB.
+		BodyLimit: 6 << 20,
+		// Real client IPs behind the web apps' nginx (rate limits, logs).
+		// nginx overwrites X-Real-IP with the connecting address, and the
+		// header is honoured only from private-network proxies, so callers
+		// can't spoof their IP past the limiter.
+		ProxyHeader:             "X-Real-IP",
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.1"},
 	})
 
 	s := &Server{
@@ -151,7 +163,14 @@ func (s *Server) registerRoutes() {
 
 	// ── Auth (public) ──
 	auth := api.Group("/auth")
-	auth.Post("/login", s.authHandler.Login)
+	auth.Post("/login", limiter.New(limiter.Config{
+		Max:        30,
+		Expiration: time.Minute,
+		LimitReached: func(c *fiber.Ctx) error {
+			return response.ErrorWithStatus(c, fiber.StatusTooManyRequests, "too_many_requests",
+				"too many sign-in attempts, please wait a minute")
+		},
+	}), s.authHandler.Login)
 	auth.Post("/refresh", s.authHandler.RefreshToken)
 
 	// Logout requires a valid access token

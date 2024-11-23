@@ -60,12 +60,15 @@ type LoggerConfig struct {
 
 // DatabaseConfig holds PostgreSQL connection settings.
 type DatabaseConfig struct {
-	Host            string
-	Port            string
-	User            string
-	Password        string
-	Name            string
-	SSLMode         string
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Name     string
+	SSLMode  string
+	// AllowInsecure permits DB_SSL_MODE=disable in production. Only for a
+	// database on the same private network (e.g. the compose stack).
+	AllowInsecure   bool
 	MaxConns        int
 	MinConns        int
 	MaxConnLifetime time.Duration
@@ -178,6 +181,7 @@ func Load() (*Config, error) {
 			Password:        getEnv("DB_PASSWORD", "postgres"),
 			Name:            getEnv("DB_NAME", "kfc_crm"),
 			SSLMode:         getEnv("DB_SSL_MODE", "disable"),
+			AllowInsecure:   getEnvBool("DB_ALLOW_INSECURE", false),
 			MaxConns:        getEnvInt("DB_MAX_CONNS", 20),
 			MinConns:        getEnvInt("DB_MIN_CONNS", 5),
 			MaxConnLifetime: getEnvDuration("DB_MAX_CONN_LIFETIME", time.Hour),
@@ -329,8 +333,8 @@ func (c *Config) Validate() error {
 		if len(c.Redis.Password) < 32 {
 			errors = append(errors, "REDIS_PASSWORD must be secure in production")
 		}
-		if c.DB.SSLMode != "require" && c.DB.SSLMode != "verify-full" {
-			errors = append(errors, "DB_SSL_MODE should be 'require' or 'verify-full' in production")
+		if c.DB.SSLMode != "require" && c.DB.SSLMode != "verify-full" && !c.DB.AllowInsecure {
+			errors = append(errors, "DB_SSL_MODE should be 'require' or 'verify-full' in production (or set DB_ALLOW_INSECURE=true for a database on a private network)")
 		}
 	}
 

@@ -55,25 +55,38 @@ func (s *authService) Login(
 
 	log.Debug("login attempt", "email", req.Email)
 
+	// 0. Brute-force guard: too many recent failures lock the account
+	//    for the rest of the window, whatever the password.
+	if n, err := s.tokenRepo.LoginFailures(ctx, req.Email); err == nil && n >= maxLoginFailures {
+		log.Warn("login blocked: too many failures", "email", req.Email)
+		return nil, domain.NewTooManyRequestsError("too many failed sign-in attempts, try again in 15 minutes")
+	}
+
 	// 1. Look up the user
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
-		// Do not leak whether the email exists.
+		// Do not leak whether the email exists — not in the message, and
+		// not in the timing: spend the same bcrypt work as a real check.
+		_ = password.CheckPassword(req.Password, dummyPasswordHash)
+		s.loginFailed(ctx, req.Email)
 		log.Warn("login failed: user not found", "email", req.Email)
 		return nil, domain.NewAuthenticationError("invalid email or password")
 	}
 
-	// 2. Check active status
+	// 2. Verify password
+	if err := password.CheckPassword(req.Password, user.PasswordHash); err != nil {
+		s.loginFailed(ctx, req.Email)
+		log.Warn("login failed: invalid password", "user_id", user.ID)
+		return nil, domain.NewAuthenticationError("invalid email or password")
+	}
+
+	// 3. Check active status — only after the password, so a stranger
+	//    can't learn which accounts exist but are disabled.
 	if !user.IsActive {
 		log.Warn("login failed: inactive user", "user_id", user.ID)
 		return nil, domain.NewAuthenticationError("user account is inactive")
 	}
-
-	// 3. Verify password
-	if err := password.CheckPassword(req.Password, user.PasswordHash); err != nil {
-		log.Warn("login failed: invalid password", "user_id", user.ID)
-		return nil, domain.NewAuthenticationError("invalid email or password")
-	}
+	_ = s.tokenRepo.ResetLoginFailures(ctx, req.Email)
 
 	// 4. Generate tokens
 	pair, err := s.generateTokenPair(user)
@@ -100,6 +113,22 @@ func (s *authService) Login(
 	)
 
 	return pair, nil
+}
+
+// Brute-force limits for staff sign-in.
+const (
+	maxLoginFailures   = 10
+	loginFailureWindow = 15 * time.Minute
+)
+
+// dummyPasswordHash is a bcrypt hash (cost 12) of a random string, used
+// to make unknown-email logins cost the same time as real ones.
+const dummyPasswordHash = "$2a$12$uEnUVQPniJuclk/Kk975juKY4AtLW5o3XTR0Vm.LPAa/Dk.HOdw7y"
+
+func (s *authService) loginFailed(ctx context.Context, email string) {
+	if _, err := s.tokenRepo.RegisterLoginFailure(ctx, email, loginFailureWindow); err != nil {
+		s.logger.Warn("could not record failed login", "error", err)
+	}
 }
 
 // ═══════════════════════════════════════════════════════════════════

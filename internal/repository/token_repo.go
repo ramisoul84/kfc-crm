@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +32,11 @@ type TokenRepository interface {
 
 	// IsAccessTokenBlacklisted reports whether the access token is revoked.
 	IsAccessTokenBlacklisted(ctx context.Context, token string) (bool, error)
+
+	// Failed-login throttle, per email.
+	LoginFailures(ctx context.Context, email string) (int, error)
+	RegisterLoginFailure(ctx context.Context, email string, window time.Duration) (int, error)
+	ResetLoginFailures(ctx context.Context, email string) error
 }
 
 // Redis key prefixes
@@ -174,4 +181,37 @@ func blacklistKey(tokenHash string) string {
 func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOGIN THROTTLE
+// ═══════════════════════════════════════════════════════════════════
+
+func loginFailKey(email string) string {
+	return "login:fail:" + strings.ToLower(strings.TrimSpace(email))
+}
+
+func (r *tokenRepo) LoginFailures(ctx context.Context, email string) (int, error) {
+	n, err := r.redis.Get(ctx, loginFailKey(email)).Int()
+	if errors.Is(err, redis.Nil) {
+		return 0, nil
+	}
+	return n, err
+}
+
+// RegisterLoginFailure counts a failed attempt in a fixed window that
+// starts at the first failure.
+func (r *tokenRepo) RegisterLoginFailure(ctx context.Context, email string, window time.Duration) (int, error) {
+	key := loginFailKey(email)
+	pipe := r.redis.TxPipeline()
+	incr := pipe.Incr(ctx, key)
+	pipe.ExpireNX(ctx, key, window)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return 0, err
+	}
+	return int(incr.Val()), nil
+}
+
+func (r *tokenRepo) ResetLoginFailures(ctx context.Context, email string) error {
+	return r.redis.Del(ctx, loginFailKey(email)).Err()
 }
