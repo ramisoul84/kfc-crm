@@ -26,18 +26,6 @@ func isForeignKeyError(err error) bool {
 		strings.Contains(msg, "violates foreign key")
 }
 
-// isNotNullError reports whether the error is a PostgreSQL
-// NOT NULL violation (SQLSTATE 23502).
-func isNotNullError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "23502") ||
-		strings.Contains(msg, "not-null") ||
-		strings.Contains(msg, "null value in column")
-}
-
 // isCheckConstraintError reports whether the error is a PostgreSQL
 // CHECK constraint violation (SQLSTATE 23514).
 func isCheckConstraintError(err error) bool {

@@ -17,7 +17,7 @@ const (
 
 // WithRequestID stores a request ID in the context.
 func WithRequestID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, RequestIDKey, id)
+	return context.WithValue(ctx, RequestIDKey, id) //nolint:staticcheck // string key on purpose: fasthttp resolves it against Fiber locals
 }
 
 // GetRequestID reads a request ID from the context.
@@ -31,7 +31,7 @@ func GetRequestID(ctx context.Context) string {
 
 // WithUserID stores a user ID in the context.
 func WithUserID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, UserIDKey, id)
+	return context.WithValue(ctx, UserIDKey, id) //nolint:staticcheck // see WithRequestID
 }
 
 // GetUserID reads a user ID from the context.

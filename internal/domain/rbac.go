@@ -169,7 +169,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuOverrideRead, PermMenuOverrideWrite, PermMenuOverrideDelete,
 		PermMenuPromotionRead,
 		PermOrderRead, PermOrderCancel,
-		PermCustomerRead,
+		PermCustomerRead, PermCustomerAdjust,
 	},
 	RoleShiftManager: {
 		PermRestaurantRead,
@@ -181,6 +181,7 @@ var RolePermissions = map[Role][]Permission{
 		PermMenuOverrideRead,
 		PermMenuPromotionRead,
 		PermOrderRead, PermOrderCancel,
+		PermCustomerRead,
 	},
 	RoleCashier: {
 		PermRestaurantRead,
