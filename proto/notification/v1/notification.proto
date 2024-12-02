@@ -8,6 +8,7 @@ import "google/protobuf/timestamp.proto";
 
 service NotificationService {
   rpc SendWelcomeEmail(SendWelcomeEmailRequest) returns (SendWelcomeEmailResponse);
+  rpc SendDevicePairingEmail(SendDevicePairingEmailRequest) returns (SendDevicePairingEmailResponse);
 }
 
 // ─────────── Welcome Email ───────────
@@ -26,4 +27,26 @@ message SendWelcomeEmailResponse {
   string message         = 2;
   string notification_id = 3;
   google.protobuf.Timestamp sent_at = 4;
+}
+
+// ─────────── Device Pairing Email ───────────
+
+message SendDevicePairingEmailRequest {
+  string to              = 1;
+  string restaurant_id   = 2;
+  string restaurant_name = 3;
+  int64  expires_at      = 4; // unix seconds
+  repeated PairingItem devices = 5;
+}
+
+message PairingItem {
+  string serial_number = 1;
+  string device_type   = 2;
+  string code          = 3;
+}
+
+message SendDevicePairingEmailResponse {
+  bool   success = 1;
+  string message = 2;
+  google.protobuf.Timestamp sent_at = 3;
 }
