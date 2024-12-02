@@ -28,10 +28,7 @@ func NewTransport(
 	menuServer *MenuServer,
 	restaurantServer *RestaurantServer,
 ) *Transport {
-	srv := grpc.NewServer(
-	// Interceptors (service-token auth, request-id, logging, recovery)
-	// will be added here in a follow-up step.
-	)
+	srv := grpc.NewServer(serverOptions(log)...)
 
 	// Register all gRPC services here.
 	menuv1.RegisterMenuServiceServer(srv, menuServer)

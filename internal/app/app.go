@@ -19,6 +19,7 @@ import (
 	"github.com/ramisoul84/kfc-crm/pkg/jwt"
 	"github.com/ramisoul84/kfc-crm/pkg/kafka"
 	"github.com/ramisoul84/kfc-crm/pkg/logger"
+	"github.com/ramisoul84/kfc-crm/pkg/metrics"
 	"github.com/ramisoul84/kfc-crm/pkg/migrate"
 	"github.com/ramisoul84/kfc-crm/pkg/outbox"
 	"github.com/ramisoul84/kfc-crm/pkg/storage"
@@ -96,6 +97,7 @@ func New(cfg *config.Config) (*App, error) {
 		log.Warn("kafka disabled; menu events accumulate in the outbox until it is enabled")
 	}
 	eventsPublisher := events.NewPublisher(db.DB, notify, log)
+	outbox.RegisterMetrics(metrics.Registry, db.DB)
 
 	// Redis
 	redisClient, err := database.NewRedis(&cfg.Redis)
@@ -247,6 +249,16 @@ func New(cfg *config.Config) (*App, error) {
 		tokenRepo,
 		userRepo,
 	)
+
+	server.SetReadiness(func(ctx context.Context) error {
+		if err := db.DB.PingContext(ctx); err != nil {
+			return fmt.Errorf("postgres: %w", err)
+		}
+		if err := redisClient.Client.Ping(ctx).Err(); err != nil {
+			return fmt.Errorf("redis: %w", err)
+		}
+		return nil
+	})
 
 	// gRPC server (NEW)
 	menuServer := grpcTransport.NewMenuServer(effectiveMenuService, log)
