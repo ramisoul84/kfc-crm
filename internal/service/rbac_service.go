@@ -55,6 +55,10 @@ type RBACService interface {
 	CanUpdateDevice(ctx context.Context, actor *domain.User, device *domain.Device) error
 	CanDeleteDevice(ctx context.Context, actor *domain.User, device *domain.Device) error
 
+	// Pairing
+	CanPairDevices(ctx context.Context, actor *domain.User, restaurantID uuid.UUID) error
+	CanPairDevice(ctx context.Context, actor *domain.User, device *domain.Device) error
+
 	// ═══════════════════════════════════════════════════════════════
 	// Region
 	// ═══════════════════════════════════════════════════════════════
@@ -141,6 +145,14 @@ func (s *rbacService) DeviceExists(ctx context.Context, deviceID uuid.UUID) erro
 // SCOPE
 // ═══════════════════════════════════════════════════════════════════
 
+// CanAccessRegion reports whether the user can access the region.
+//
+// Invariant: the caller must have already validated the user via
+// CheckPermission. This method does NOT re-check IsActive.
+//
+// Restaurant-scoped roles (restaurant_manager, shift_manager, cashier)
+// do not access regions directly — they access them through their
+// restaurant. Callers should use CanAccessRestaurant for those roles.
 func (s *rbacService) CanAccessRegion(user *domain.User, regionID uuid.UUID) error {
 	if user == nil {
 		return domain.NewAuthorizationError("user not found")
@@ -159,11 +171,19 @@ func (s *rbacService) CanAccessRegion(user *domain.User, regionID uuid.UUID) err
 		}
 		return nil
 
+	case domain.RoleRestaurantManager, domain.RoleShiftManager, domain.RoleCashier:
+		// Restaurant-scoped roles have no direct region access.
+		return domain.NewAuthorizationError("insufficient permissions")
+
 	default:
 		return domain.NewAuthorizationError("insufficient permissions")
 	}
 }
 
+// CanAccessRestaurant reports whether the user can access the restaurant.
+//
+// Invariant: the caller must have already validated the user via
+// CheckPermission. This method does NOT re-check IsActive.
 func (s *rbacService) CanAccessRestaurant(
 	ctx context.Context,
 	user *domain.User,
@@ -218,14 +238,22 @@ func (s *rbacService) CanCreateUser(
 		return err
 	}
 
-	// 2. Role hierarchy
+	// 2. Validate the requested role before checking hierarchy — a bad
+	// role string should fail as "invalid role", not "cannot create".
+	if !req.Role.IsValid() {
+		return domain.NewValidationError(
+			fmt.Sprintf("invalid role: %q", req.Role),
+		)
+	}
+
+	// 3. Role hierarchy
 	if !actor.Role.CanCreateRole(req.Role) {
 		return domain.NewAuthorizationError(
 			fmt.Sprintf("%s cannot create %s", actor.Role, req.Role),
 		)
 	}
 
-	// 3. Existence — load referenced entities once
+	// 4. Existence — load referenced entities once
 	var (
 		targetRegion     *domain.Region
 		targetRestaurant *domain.Restaurant
@@ -253,7 +281,7 @@ func (s *rbacService) CanCreateUser(
 		targetRestaurant = r
 	}
 
-	// 4. Consistency — if both provided, they must match
+	// 5. Consistency — if both provided, they must match
 	if targetRegion != nil && targetRestaurant != nil {
 		if targetRestaurant.RegionID != targetRegion.ID {
 			return domain.NewValidationError(
@@ -262,7 +290,7 @@ func (s *rbacService) CanCreateUser(
 		}
 	}
 
-	// 5. Scope
+	// 6. Scope
 	switch actor.Role {
 	case domain.RoleSuperAdmin:
 		return nil
@@ -272,16 +300,12 @@ func (s *rbacService) CanCreateUser(
 			return domain.NewAuthorizationError("no region assigned")
 		}
 
-		// If a restaurant is targeted, its region must equal actor's region
 		if targetRestaurant != nil && targetRestaurant.RegionID != *actor.RegionID {
 			return domain.NewAuthorizationError("cannot create users outside your region")
 		}
-
-		// If a region is targeted, it must equal actor's region
 		if targetRegion != nil && targetRegion.ID != *actor.RegionID {
 			return domain.NewAuthorizationError("cannot create users outside your region")
 		}
-
 		return nil
 
 	case domain.RoleRestaurantManager:
@@ -301,11 +325,13 @@ func (s *rbacService) CanCreateUser(
 	}
 }
 
-// CanReadUser is the base "can this actor see this target user?" check.
-// Used by GetByID and List.
+// CanReadUser allows reading self or any user in scope.
 func (s *rbacService) CanReadUser(actor, target *domain.User) error {
 	if err := s.CheckPermission(actor, domain.PermUserRead); err != nil {
 		return err
+	}
+	if actor.ID == target.ID {
+		return nil // can always read yourself
 	}
 	return s.canManageUser(actor, target)
 }
@@ -314,53 +340,44 @@ func (s *rbacService) CanUpdateUser(
 	actor, target *domain.User,
 	req *domain.UpdateUserRequest,
 ) error {
-	// 1. Permission
 	if err := s.CheckPermission(actor, domain.PermUserUpdate); err != nil {
 		return err
 	}
 
-	// 2. Self-deactivation guard
-	if req.IsActive != nil && !*req.IsActive && actor.ID == target.ID {
-		return domain.NewAuthorizationError("cannot deactivate yourself")
+	// Self-update: allowed for profile fields, but never activation state.
+	if actor.ID == target.ID {
+		if req.IsActive != nil {
+			return domain.NewAuthorizationError("cannot change your own activation status")
+		}
+		return nil
 	}
 
-	// 3. Base rule
 	return s.canManageUser(actor, target)
 }
 
 func (s *rbacService) CanDeleteUser(actor, target *domain.User) error {
-	// 1. Permission
 	if err := s.CheckPermission(actor, domain.PermUserDelete); err != nil {
 		return err
 	}
-
-	// 2. Cannot delete self
 	if actor.ID == target.ID {
 		return domain.NewAuthorizationError("cannot delete yourself")
 	}
-
-	// 3. Base rule
 	return s.canManageUser(actor, target)
 }
 
-// canManageUser is the internal base rule: self, hierarchy, scope.
-// Not exported — callers use CanUpdateUser/CanDeleteUser/CanReadUser.
+// canManageUser is the internal base rule for managing *another* user:
+// hierarchy + scope. Self is handled by each public method.
 func (s *rbacService) canManageUser(actor, target *domain.User) error {
 	if actor == nil || target == nil {
 		return domain.NewAuthorizationError("user not found")
 	}
 
-	// 1. Cannot manage yourself
-	if actor.ID == target.ID {
-		return domain.NewAuthorizationError("cannot manage yourself")
-	}
-
-	// 2. Hierarchy — target must be strictly lower
+	// Hierarchy — target must be strictly lower
 	if target.Role.IsAtLeast(actor.Role) {
 		return domain.NewAuthorizationError("cannot manage user with equal or higher role")
 	}
 
-	// 3. Scope
+	// Scope
 	switch actor.Role {
 	case domain.RoleSuperAdmin:
 		return nil
@@ -369,15 +386,12 @@ func (s *rbacService) canManageUser(actor, target *domain.User) error {
 		if actor.RegionID == nil {
 			return domain.NewAuthorizationError("no region assigned")
 		}
-		// Target must belong to the same region.
-		// Prefer RegionID; fall back to the target's restaurant if set.
 		if target.RegionID != nil {
 			if *target.RegionID != *actor.RegionID {
 				return domain.NewAuthorizationError("cannot manage users outside your region")
 			}
 			return nil
 		}
-		// Target has no region — deny
 		return domain.NewAuthorizationError("cannot manage users outside your region")
 
 	case domain.RoleRestaurantManager:
@@ -472,7 +486,6 @@ func (s *rbacService) CanCreateDevice(
 	if err := s.CheckPermission(actor, domain.PermDeviceCreate); err != nil {
 		return err
 	}
-	// Existence check gives a cleaner error than scope check
 	if err := s.RestaurantExists(ctx, restaurantID); err != nil {
 		return err
 	}
@@ -513,6 +526,47 @@ func (s *rbacService) CanDeleteDevice(
 	device *domain.Device,
 ) error {
 	if err := s.CheckPermission(actor, domain.PermDeviceDelete); err != nil {
+		return err
+	}
+	if device == nil {
+		return domain.NewAuthorizationError("device not found")
+	}
+	return s.CanAccessRestaurant(ctx, actor, device.RestaurantID)
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DEVICE PAIRING
+// ═══════════════════════════════════════════════════════════════════
+
+// CanPairDevices authorizes a batch pairing operation for a restaurant.
+// Used by PairAllDevicesInRestaurant.
+func (s *rbacService) CanPairDevices(
+	ctx context.Context,
+	actor *domain.User,
+	restaurantID uuid.UUID,
+) error {
+	// 1. Permission
+	if err := s.CheckPermission(actor, domain.PermDevicePair); err != nil {
+		return err
+	}
+
+	// 2. Restaurant must exist (cleaner error than "outside your scope")
+	if err := s.RestaurantExists(ctx, restaurantID); err != nil {
+		return err
+	}
+
+	// 3. Scope
+	return s.CanAccessRestaurant(ctx, actor, restaurantID)
+}
+
+// CanPairDevice authorizes pairing a specific device.
+// Used by PairDevice.
+func (s *rbacService) CanPairDevice(
+	ctx context.Context,
+	actor *domain.User,
+	device *domain.Device,
+) error {
+	if err := s.CheckPermission(actor, domain.PermDevicePair); err != nil {
 		return err
 	}
 	if device == nil {

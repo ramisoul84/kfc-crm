@@ -91,6 +91,7 @@ const (
 	PermDeviceRead   Permission = "device.read"
 	PermDeviceUpdate Permission = "device.update"
 	PermDeviceDelete Permission = "device.delete"
+	PermDevicePair   Permission = "device.pair"
 
 	// Menu Category permissions
 	PermMenuCategoryRead   Permission = "menu.category.read"
@@ -128,7 +129,7 @@ var RolePermissions = map[Role][]Permission{
 		PermRegionCreate, PermRegionRead, PermRegionUpdate, PermRegionDelete,
 		PermRestaurantCreate, PermRestaurantRead, PermRestaurantUpdate, PermRestaurantDelete,
 		PermUserCreate, PermUserRead, PermUserUpdate, PermUserDelete,
-		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDeviceDelete,
+		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDeviceDelete, PermDevicePair,
 		PermMenuCategoryRead, PermMenuCategoryWrite, PermMenuCategoryDelete,
 		PermMenuItemRead, PermMenuItemWrite, PermMenuItemDelete,
 		PermMenuVariationRead, PermMenuVariationWrite, PermMenuVariationDelete,
@@ -139,7 +140,7 @@ var RolePermissions = map[Role][]Permission{
 		PermRegionRead,
 		PermRestaurantCreate, PermRestaurantRead, PermRestaurantUpdate, PermRestaurantDelete,
 		PermUserCreate, PermUserRead, PermUserUpdate, PermUserDelete,
-		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDeviceDelete,
+		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDeviceDelete, PermDevicePair,
 		PermMenuCategoryRead,
 		PermMenuItemRead,
 		PermMenuVariationRead,
@@ -149,7 +150,7 @@ var RolePermissions = map[Role][]Permission{
 	RoleRestaurantManager: {
 		PermRestaurantRead,
 		PermUserCreate, PermUserRead, PermUserUpdate,
-		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate,
+		PermDeviceCreate, PermDeviceRead, PermDeviceUpdate, PermDevicePair,
 		PermMenuCategoryRead,
 		PermMenuItemRead,
 		PermMenuVariationRead,
