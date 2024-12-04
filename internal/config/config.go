@@ -16,6 +16,7 @@ type Config struct {
 	Redis        RedisConfig
 	JWT          JWTConfig
 	Notification NotificationConfig
+	UserAPI      UserAPIConfig
 }
 
 // AppConfig holds application-level configuration
@@ -93,6 +94,13 @@ type NotificationConfig struct {
 	Enabled bool
 }
 
+// UserAPIConfig holds userapi service settings.
+type UserAPIConfig struct {
+	Address string
+	Timeout time.Duration
+	Enabled bool
+}
+
 // Load reads configuration from environment variables and validates it.
 func Load() (*Config, error) {
 	env := getEnv("APP_ENV", "development")
@@ -161,9 +169,15 @@ func Load() (*Config, error) {
 		},
 
 		Notification: NotificationConfig{
-			Address: getEnv("NOTIFICATION_ADDRESS", "localhost:9094"),
+			Address: getEnv("NOTIFICATION_ADDRESS", "localhost:9101"),
 			Timeout: getEnvDuration("NOTIFICATION_TIMEOUT", 5*time.Second),
 			Enabled: getEnvBool("NOTIFICATION_ENABLED", true),
+		},
+
+		UserAPI: UserAPIConfig{
+			Address: getEnv("USERAPI_ADDRESS", "localhost:9102"),
+			Timeout: getEnvDuration("USERAPI_TIMEOUT", 5*time.Second),
+			Enabled: getEnvBool("USERAPI_ENABLED", true),
 		},
 	}
 

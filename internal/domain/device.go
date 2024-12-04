@@ -79,3 +79,36 @@ func (d *Device) ToResponse() *DeviceResponse {
 		CreatedAt:    d.CreatedAt,
 	}
 }
+
+type PairingCode struct {
+	ID           uuid.UUID `json:"id"`
+	CodeHash     string    `json:"-"`
+	SerialNumber string    `json:"serial_number"`
+	DeviceID     uuid.UUID `json:"device_id"`
+	RestaurantID uuid.UUID `json:"restaurant_id"`
+	CreatedBy    uuid.UUID `json:"created_by"`
+	ExpiresAt    time.Time `json:"expires_at"`
+	Used         bool      `json:"used"`
+}
+
+type PairingEntry struct {
+	DeviceID     uuid.UUID `json:"device_id"`
+	SerialNumber string    `json:"serial_number"`
+	DeviceType   string    `json:"device_type"`
+	Code         string    `json:"code,omitempty"`
+	Error        string    `json:"error,omitempty"`
+}
+
+type PairDevicesResult struct {
+	RestaurantID uuid.UUID      `json:"restaurant_id"`
+	ExpiresAt    time.Time      `json:"expires_at"`
+	Devices      []PairingEntry `json:"devices"`
+}
+
+type PairDeviceResult struct {
+	DeviceID     uuid.UUID `json:"device_id"`
+	SerialNumber string    `json:"serial_number"`
+	DeviceType   string    `json:"device_type"`
+	Code         string    `json:"code"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
