@@ -171,3 +171,75 @@ func (h *DeviceHandler) Delete(c *fiber.Ctx) error {
 		"message": "device deleted successfully",
 	})
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// PAIR ALL DEVICES IN RESTAURANT
+// ═══════════════════════════════════════════════════════════════════
+
+// PairAll handles POST /api/v1/devices/pair-all.
+//
+// Body: {"restaurant_id": "<uuid>"}
+//
+// Generates a fresh pairing code for every device in the restaurant.
+// The codes are sent to userapi (the only store) and emailed to the
+// calling manager. Response includes per-device success/error so the
+// manager can retry any that failed.
+func (h *DeviceHandler) PairAll(c *fiber.Ctx) error {
+	actor := ctxutil.GetUserFromFiber(c)
+	if actor == nil {
+		return response.Error(c, domain.NewAuthenticationError("not authenticated"))
+	}
+
+	var req struct {
+		RestaurantID string `json:"restaurant_id"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, domain.NewValidationError("invalid request body"))
+	}
+	if req.RestaurantID == "" {
+		return response.Error(c, domain.NewValidationError("restaurant_id is required"))
+	}
+
+	restaurantID, err := uuid.Parse(req.RestaurantID)
+	if err != nil {
+		return response.Error(c, domain.NewValidationError("invalid restaurant_id"))
+	}
+
+	result, err := h.deviceService.PairAllDevicesInRestaurant(
+		c.UserContext(), actor, restaurantID,
+	)
+	if err != nil {
+		return response.Error(c, err)
+	}
+
+	return response.Success(c, result)
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PAIR A SINGLE DEVICE
+// ═══════════════════════════════════════════════════════════════════
+
+// PairOne handles POST /api/v1/devices/:id/pair.
+//
+// Generates a fresh pairing code for one device. Used when a single
+// device needs to be re-paired (replacement unit, expired code, etc.).
+// The code is sent to userapi and returned in the response so the
+// caller can display it directly.
+func (h *DeviceHandler) PairOne(c *fiber.Ctx) error {
+	actor := ctxutil.GetUserFromFiber(c)
+	if actor == nil {
+		return response.Error(c, domain.NewAuthenticationError("not authenticated"))
+	}
+
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return response.Error(c, domain.NewValidationError("invalid device ID"))
+	}
+
+	result, err := h.deviceService.PairDevice(c.UserContext(), actor, id)
+	if err != nil {
+		return response.Error(c, err)
+	}
+
+	return response.Success(c, result)
+}

@@ -193,6 +193,10 @@ func (s *Server) registerRoutes() {
 	devices.Put("/:id", s.deviceHandler.Update)
 	devices.Delete("/:id", s.deviceHandler.Delete)
 
+	// Pairing
+	devices.Post("/pair-all", s.deviceHandler.PairAll) // body: restaurant_id
+	devices.Post("/:id/pair", s.deviceHandler.PairOne) // path: device id
+
 	// Menu
 	menu := protected.Group("/menu")
 

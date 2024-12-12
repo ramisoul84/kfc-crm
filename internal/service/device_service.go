@@ -298,6 +298,15 @@ func (s *deviceService) Delete(
 		)
 	}
 
+	// Revoke all issued tokens for this device. Best-effort: if userapi
+	// is unreachable, the tokens still expire on their own.
+	if err := s.userAPIClient.RevokeDevice(ctx, device.ID.String()); err != nil {
+		log.Warn("failed to revoke device in userapi",
+			"device_id", device.ID,
+			"error", err,
+		)
+	}
+
 	if err := s.deviceRepo.Delete(ctx, id); err != nil {
 		log.Error("delete device failed", "device_id", id, "error", err)
 		return err
